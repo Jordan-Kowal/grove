@@ -1,0 +1,38 @@
+# Build artifacts & binaries
+bin/
+dist/
+build/darwin/Assets.car
+build/appicon.png
+
+# Generated code (Wails bindings)
+frontend/bindings/
+
+# Dependencies
+node_modules/
+
+# Lock files
+bun.lock
+go.sum
+
+# TypeScript build cache
+.tsbuildinfo
+
+# Task cache
+.task/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# Images & sounds (binary files)
+*.icns
+*.aiff
+*.png
+
+# Git internals
+.git/
+
+# Docs (generated)
+docs/

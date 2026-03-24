@@ -1,0 +1,94 @@
+/** biome-ignore-all lint/suspicious/noControlCharactersInRegex: ANSI parsing requires control chars */
+
+const ANSI_COLOR_MAP: Record<string, string> = {
+  // Standard colors
+  "30": "text-black",
+  "31": "text-red-500",
+  "32": "text-green-500",
+  "33": "text-yellow-500",
+  "34": "text-blue-500",
+  "35": "text-purple-500",
+  "36": "text-cyan-500",
+  "37": "text-gray-300",
+
+  // Bright colors
+  "90": "text-gray-500",
+  "91": "text-red-400",
+  "92": "text-green-400",
+  "93": "text-yellow-400",
+  "94": "text-blue-400",
+  "95": "text-purple-400",
+  "96": "text-cyan-400",
+  "97": "text-white",
+
+  // Styles
+  "1": "font-bold",
+  "2": "opacity-75",
+  "4": "underline",
+};
+
+export type AnsiSegment = {
+  text: string;
+  classes: string[];
+};
+
+export const parseAnsiToSegments = (text: string): AnsiSegment[] => {
+  const segments: AnsiSegment[] = [];
+
+  // Remove cursor control sequences that don't apply to log display
+  const cleanedText = text
+    .replace(/\x1b\[[0-9]*K/g, "")
+    .replace(/\x1b\[[0-9]*G/g, "")
+    .replace(/\x1b\[[0-9]*;[0-9]*H/g, "")
+    .replace(/\x1b\[[0-9]*[ABCD]/g, "")
+    .replace(/\x1b\[s/g, "")
+    .replace(/\x1b\[u/g, "")
+    .replace(/\x1b\[2J/g, "")
+    .replace(/\x1b\[\?25[lh]/g, "");
+
+  const ansiRegex = /\x1b\[([0-9;]*)m/g;
+
+  let lastIndex = 0;
+  let currentClasses: string[] = [];
+  let match: RegExpExecArray | null;
+
+  // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
+  while ((match = ansiRegex.exec(cleanedText)) !== null) {
+    if (match.index > lastIndex) {
+      const textSegment = cleanedText.slice(lastIndex, match.index);
+      if (textSegment) {
+        segments.push({ text: textSegment, classes: [...currentClasses] });
+      }
+    }
+
+    const codes = match[1].split(";").filter(Boolean);
+    for (const code of codes) {
+      if (code === "0" || code === "") {
+        currentClasses = [];
+      } else if (ANSI_COLOR_MAP[code]) {
+        const newClass = ANSI_COLOR_MAP[code];
+        if (newClass.startsWith("text-")) {
+          currentClasses = currentClasses.filter(
+            (cls) => !cls.startsWith("text-"),
+          );
+        }
+        currentClasses.push(newClass);
+      }
+    }
+
+    lastIndex = ansiRegex.lastIndex;
+  }
+
+  if (lastIndex < cleanedText.length) {
+    const remainingText = cleanedText.slice(lastIndex);
+    if (remainingText) {
+      segments.push({ text: remainingText, classes: [...currentClasses] });
+    }
+  }
+
+  if (segments.length === 0) {
+    segments.push({ text: cleanedText, classes: [] });
+  }
+
+  return segments;
+};

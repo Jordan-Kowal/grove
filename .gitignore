@@ -1,0 +1,45 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+lerna-debug.log*
+
+# Node
+node_modules
+dist
+dist-ssr
+*.local
+
+# Vite
+coverage
+bundle-stats.html
+
+# TypeScript
+.tsbuildinfo
+
+# IDE/Editor
+.zed/settings.local.json
+
+# Claude Code
+.claude/settings.local.json
+docs/plans
+
+# Go / Wails
+bin
+.task
+frontend/bindings
+build/appicon.png
+build/darwin/Assets.car
+
+# Secrets / credentials
+.env*
+*.pem
+*.key
+
+# macOS
+**/.DS_Store
+
+docs/**

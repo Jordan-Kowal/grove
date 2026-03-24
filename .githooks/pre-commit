@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+echo "---------- Git hook: pre-commit ----------"
+task check
+echo "------------------------------------------"

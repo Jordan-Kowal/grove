@@ -1,0 +1,55 @@
+import tailwindcss from "@tailwindcss/vite";
+import devtools from "solid-devtools/vite";
+import { defineConfig } from "vite";
+import solidPlugin from "vite-plugin-solid";
+import pkg from "./package.json";
+
+export default defineConfig(() => ({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
+  plugins: [devtools(), solidPlugin(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": `${import.meta.dirname}/src`,
+      "@backend": `${import.meta.dirname}/frontend/bindings/github.com/Jordan-Kowal/grove/backend`,
+    },
+  },
+  server: {
+    watch: {
+      ignored: [
+        // Directories
+        "**/.claude/**",
+        "**/.githooks/**",
+        "**/.github/**",
+        "**/.zed/**",
+        "**/backend/**",
+        "**/bin/**",
+        "**/build/**",
+        "**/dist/**",
+        "**/docs/**",
+        "**/frontend/**",
+        "**/logs/**",
+        "**/scripts/**",
+        // File extensions
+        "**/*.go",
+        "**/*.lock",
+        "**/*.md",
+        "**/*.mod",
+        "**/*.sh",
+        "**/*.sum",
+        "**/*.yml",
+      ],
+    },
+  },
+  base: "./",
+  build: {
+    target: "esnext",
+    outDir: "dist",
+    emptyOutDir: true,
+    minify: true,
+  },
+  optimizeDeps: {
+    include: ["solid-js", "lucide-solid", "@wailsio/runtime"],
+  },
+}));

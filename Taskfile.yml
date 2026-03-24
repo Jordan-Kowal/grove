@@ -1,0 +1,81 @@
+version: '3'
+
+includes:
+  common: ./build/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+
+vars:
+  APP_NAME: "Grove"
+  BIN_DIR: "bin"
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "darwin:build"
+
+  dev:build:
+    summary: Builds the application for development (no production tag)
+    cmds:
+      - task: "darwin:build"
+        vars:
+          DEV: "true"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "darwin:package"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "darwin:run"
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  lint:
+    summary: Runs all linters (biome, tsc, golangci-lint)
+    cmds:
+      - bun run biome:check
+      - bun run tsc
+      - golangci-lint run
+
+  test:
+    summary: Runs all tests
+    env:
+      CGO_LDFLAGS: "-mmacosx-version-min=15.4"
+    cmds:
+      - go test -race ./backend/...
+
+  check:
+    summary: Runs all quality checks (lint + test)
+    cmds:
+      - task: lint
+      - task: test
+
+  upgrade:
+    summary: Updates all dependencies to latest versions and runs checks
+    cmds:
+      - bun update --latest
+      - go get -u ./...
+      - go mod tidy
+      - task: check
+
+  version:bump:
+    summary: Bumps the app version across all config files
+    cmds:
+      - sh scripts/bump-version.sh {{.CLI_ARGS}}
+
+  generate:
+    summary: Generates Wails TypeScript bindings from Go services
+    cmds:
+      - wails3 generate bindings -ts -d frontend/bindings
+
+  clean:
+    summary: Removes build artifacts
+    cmds:
+      - rm -rf dist bin
