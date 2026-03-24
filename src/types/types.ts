@@ -22,8 +22,6 @@ export type WorktreeInfo = {
   insertions: number;
   deletions: number;
   claudeStatus: ClaudeStatus;
-  hasUncommittedChanges: boolean;
-  hasUnpushedCommits: boolean;
 };
 
 export type Workspace = {

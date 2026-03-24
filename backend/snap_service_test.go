@@ -69,6 +69,10 @@ func TestSnapServiceGetEditorBoundsNotSnapped(t *testing.T) {
 }
 
 func TestSnapServiceGetEditorBoundsNoWindow(t *testing.T) {
+	if _, _, _, _, err := getGroveWindowPosition(); err == nil {
+		t.Skip("Grove is running — this test requires no Grove window to be open")
+	}
+
 	svc := NewSnapService()
 	svc.mu.Lock()
 	svc.snapSide = snapLeft

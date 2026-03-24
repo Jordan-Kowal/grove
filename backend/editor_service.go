@@ -3,7 +3,6 @@ package backend
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -43,37 +42,9 @@ func (s *EditorService) FocusEditor(worktreePath string, editorApp string) error
 		return fmt.Errorf("application %q not found", editorApp)
 	}
 
-	safePath := escapeAppleScript(worktreePath)
-	safeApp := escapeAppleScript(editorApp)
-	safeName := escapeAppleScript(filepath.Base(worktreePath))
-
-	script := fmt.Sprintf(`
-tell application "System Events"
-	if not (exists process "%s") then
-		do shell script "open -a '%s' '%s'"
-		return
-	end if
-	set editorProcess to first process whose name is "%s"
-	set frontmost of editorProcess to true
-	set foundWindow to false
-	tell editorProcess
-		repeat with w in windows
-			if name of w contains "%s" then
-				perform action "AXRaise" of w
-				set foundWindow to true
-				exit repeat
-			end if
-		end repeat
-	end tell
-	if not foundWindow then
-		do shell script "open -a '%s' '%s'"
-	end if
-end tell
-`, safeApp, safeApp, safePath, safeApp, safeName, safeApp, safePath)
-
-	cmd := exec.Command("osascript", "-e", script) // #nosec G204 -- app validated via isValidApp + escaped
+	cmd := exec.Command("open", "-a", editorApp, worktreePath) // #nosec G204 -- app validated via IsValidApp
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("AppleScript failed: %s: %w", string(out), err)
+		return fmt.Errorf("open editor failed: %s: %w", string(out), err)
 	}
 	return nil
 }

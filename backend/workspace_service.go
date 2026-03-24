@@ -581,8 +581,6 @@ func (s *WorkspaceService) scanWorktrees(workspaceName string) []WorktreeInfo {
 		}
 		wt.Branch = getGitBranch(dirPath)
 		wt.FilesChanged, wt.Insertions, wt.Deletions = getGitDiffStats(dirPath)
-		wt.HasUncommittedChanges = hasUncommittedChanges(dirPath)
-		wt.HasUnpushedCommits = hasUnpushedCommits(dirPath)
 		worktrees = append(worktrees, wt)
 	}
 	return worktrees
@@ -627,31 +625,10 @@ func getGitBranch(dir string) string {
 
 // getGitDiffStats returns diff statistics for a directory.
 func getGitDiffStats(dir string) (files, insertions, deletions int) {
-	cmd := exec.Command("git", "-C", dir, "diff", "--stat") // #nosec G204
+	cmd := exec.Command("git", "-C", dir, "--no-optional-locks", "diff", "--shortstat") // #nosec G204
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, 0, 0
 	}
 	return parseGitDiffStat(string(out))
-}
-
-// hasUncommittedChanges checks for staged or unstaged changes (including untracked files).
-func hasUncommittedChanges(dir string) bool {
-	cmd := exec.Command("git", "-C", dir, "status", "--porcelain") // #nosec G204
-	out, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-	return len(strings.TrimSpace(string(out))) > 0
-}
-
-// hasUnpushedCommits checks if the current branch has commits not pushed to its upstream.
-func hasUnpushedCommits(dir string) bool {
-	cmd := exec.Command("git", "-C", dir, "log", "@{u}..HEAD", "--oneline") // #nosec G204
-	out, err := cmd.Output()
-	if err != nil {
-		// No upstream set or other error — treat as no unpushed
-		return false
-	}
-	return len(strings.TrimSpace(string(out))) > 0
 }

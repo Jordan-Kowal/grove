@@ -59,12 +59,21 @@ func TestValidateName(t *testing.T) {
 	}
 }
 
+// TestMain clears git env vars that leak from pre-commit hooks, preventing
+// test git commands from accidentally operating on the real repo.
+func TestMain(m *testing.M) {
+	for _, key := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"} {
+		_ = os.Unsetenv(key)
+	}
+	os.Exit(m.Run())
+}
+
 // initTestRepo creates a temporary git repo with one commit and returns its path.
 func initTestRepo(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	cmds := [][]string{
-		{"git", "init"},
+		{"git", "init", "-b", "main"},
 		{"git", "config", "user.email", "test@test.com"},
 		{"git", "config", "user.name", "Test"},
 		{"git", "commit", "--allow-empty", "-m", "init"},
@@ -93,23 +102,6 @@ func TestGetGitBranchInvalidDir(t *testing.T) {
 	branch := getGitBranch("/nonexistent/path")
 	if branch != "unknown" {
 		t.Errorf("getGitBranch(invalid) = %q, want %q", branch, "unknown")
-	}
-}
-
-func TestHasUncommittedChanges(t *testing.T) {
-	dir := initTestRepo(t)
-
-	// Clean repo — no uncommitted changes
-	if hasUncommittedChanges(dir) {
-		t.Error("expected no uncommitted changes in clean repo")
-	}
-
-	// Create an untracked file
-	if err := os.WriteFile(filepath.Join(dir, "new.txt"), []byte("hello"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if !hasUncommittedChanges(dir) {
-		t.Error("expected uncommitted changes after adding untracked file")
 	}
 }
 
