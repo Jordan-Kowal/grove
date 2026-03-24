@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@wailsio/runtime": "3.0.0-alpha.79",
-    "lucide-solid": "0.577.0",
+    "lucide-solid": "1.0.1",
     "solid-js": "1.9.11"
   },
   "devDependencies": {
@@ -39,8 +39,8 @@
     "rimraf": "6.1.3",
     "solid-devtools": "0.34.5",
     "tailwindcss": "4.2.2",
-    "typescript": "5.9.3",
-    "vite": "8.0.1",
+    "typescript": "6.0.2",
+    "vite": "8.0.2",
     "vite-plugin-solid": "2.11.11"
   }
 }
