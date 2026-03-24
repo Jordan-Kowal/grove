@@ -3,8 +3,6 @@ package backend
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,7 +18,6 @@ import (
 const (
 	claudePollInterval = 2 * time.Second
 	gitPollInterval    = 10 * time.Second
-	tmpPollInterval    = 30 * time.Second
 )
 
 // MonitorService polls workspace/worktree status and emits events on changes.
@@ -29,10 +26,8 @@ type MonitorService struct {
 	soundSvc     *SoundService
 	traySvc      *TrayService
 	groveDir     string
-	uid          string
 	mu           sync.RWMutex
 	workspaces   []Workspace
-	tmpUsage     TmpUsage
 	stopCh       chan struct{}
 	stopOnce     sync.Once
 	prevStatuses map[string]ClaudeStatus // track previous status per worktree path
@@ -51,7 +46,6 @@ func NewMonitorService(workspaceSvc *WorkspaceService, soundSvc *SoundService, t
 		soundSvc:     soundSvc,
 		traySvc:      traySvc,
 		groveDir:     filepath.Join(homeDir, ".grove", "sessions"),
-		uid:          fmt.Sprintf("%d", os.Getuid()),
 		stopCh:       make(chan struct{}),
 		prevStatuses: make(map[string]ClaudeStatus),
 		doneTimers:   make(map[string]*time.Timer),
@@ -68,7 +62,6 @@ func (s *MonitorService) ServiceStartup(_ context.Context, _ application.Service
 	s.refreshWorkspaces()
 	go s.pollClaude()
 	go s.pollGit()
-	go s.pollTmp()
 	return nil
 }
 
@@ -124,24 +117,6 @@ func (s *MonitorService) GetWorkspaces() []Workspace {
 	return result
 }
 
-// GetTmpUsage returns the current /tmp Claude disk usage.
-func (s *MonitorService) GetTmpUsage() TmpUsage {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.tmpUsage
-}
-
-// NukeTmpFiles removes all /tmp/claude-<uid>/ contents.
-func (s *MonitorService) NukeTmpFiles() error {
-	tmpDir := filepath.Join(os.TempDir(), "claude-"+s.uid)
-	if err := os.RemoveAll(tmpDir); err != nil {
-		return fmt.Errorf("failed to remove %s: %w", tmpDir, err)
-	}
-	s.refreshTmp()
-	application.Get().Event.Emit("tmp-updated", s.GetTmpUsage())
-	return nil
-}
-
 // RefreshNow triggers an immediate refresh and event emission.
 func (s *MonitorService) RefreshNow() {
 	s.refreshWorkspaces()
@@ -192,24 +167,6 @@ func (s *MonitorService) pollGit() {
 			s.gitBusy.Unlock()
 			if curr := s.GetWorkspaces(); !reflect.DeepEqual(prev, curr) {
 				application.Get().Event.Emit("workspaces-updated", curr)
-			}
-		}
-	}
-}
-
-func (s *MonitorService) pollTmp() {
-	s.refreshTmp()
-	ticker := time.NewTicker(tmpPollInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-s.stopCh:
-			return
-		case <-ticker.C:
-			prev := s.GetTmpUsage()
-			s.refreshTmp()
-			if curr := s.GetTmpUsage(); prev != curr {
-				application.Get().Event.Emit("tmp-updated", curr)
 			}
 		}
 	}
@@ -486,52 +443,4 @@ func isProcessAlive(pid int) bool {
 	}
 	err = process.Signal(syscall.Signal(0))
 	return err == nil
-}
-
-// --- /tmp monitoring ---
-
-func (s *MonitorService) refreshTmp() {
-	tmpDir := filepath.Join(os.TempDir(), "claude-"+s.uid)
-	var totalSize int64
-	var fileCount int
-
-	_ = filepath.WalkDir(tmpDir, func(_ string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return fs.SkipDir
-		}
-		if !d.IsDir() {
-			info, err := d.Info()
-			if err == nil {
-				totalSize += info.Size()
-				fileCount++
-			}
-		}
-		return nil
-	})
-
-	s.mu.Lock()
-	s.tmpUsage = TmpUsage{
-		SizeBytes:     totalSize,
-		SizeFormatted: formatBytes(totalSize),
-		FileCount:     fileCount,
-	}
-	s.mu.Unlock()
-}
-
-func formatBytes(b int64) string {
-	const (
-		kb = 1024
-		mb = kb * 1024
-		gb = mb * 1024
-	)
-	switch {
-	case b >= gb:
-		return fmt.Sprintf("%.1f GB", float64(b)/float64(gb))
-	case b >= mb:
-		return fmt.Sprintf("%.1f MB", float64(b)/float64(mb))
-	case b >= kb:
-		return fmt.Sprintf("%.1f KB", float64(b)/float64(kb))
-	default:
-		return fmt.Sprintf("%d B", b)
-	}
 }

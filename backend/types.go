@@ -35,10 +35,3 @@ type WorktreeInfo struct {
 	Deletions    int          `json:"deletions"`
 	ClaudeStatus ClaudeStatus `json:"claudeStatus"`
 }
-
-// TmpUsage represents /tmp/claude-* disk usage.
-type TmpUsage struct {
-	SizeBytes     int64  `json:"sizeBytes"`
-	SizeFormatted string `json:"sizeFormatted"`
-	FileCount     int    `json:"fileCount"`
-}

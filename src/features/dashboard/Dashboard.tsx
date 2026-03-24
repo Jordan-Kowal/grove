@@ -1,6 +1,6 @@
 import { Plus, Settings } from "lucide-solid";
 import { type Component, For, Show } from "solid-js";
-import { TmpMonitor, WorkspaceSection } from "./components";
+import { WorkspaceSection } from "./components";
 import { useDashboardContext } from "./contexts";
 
 type DashboardProps = {
@@ -83,13 +83,6 @@ export const Dashboard: Component<DashboardProps> = (props) => {
           </For>
         </Show>
       </div>
-
-      {/* Tmp monitor at bottom */}
-      <Show when={ctx.tmpUsage().sizeBytes > 0}>
-        <div class="shrink-0 p-2 border-t border-base-300">
-          <TmpMonitor tmpUsage={ctx.tmpUsage()} onNuke={ctx.nukeTmp} />
-        </div>
-      </Show>
     </div>
   );
 };

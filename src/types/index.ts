@@ -1,5 +1,4 @@
 export type {
-  TmpUsage,
   WailsEvent,
   Workspace,
   WorkspaceConfig,

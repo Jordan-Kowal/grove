@@ -1,7 +1,6 @@
 import { createContext } from "solid-js";
 import type {
   LogLine,
-  TmpUsage,
   Workspace,
   WorkspaceConfig,
   WorktreeTaskEvent,
@@ -9,7 +8,6 @@ import type {
 
 export type DashboardContextProps = {
   workspaces: () => Workspace[];
-  tmpUsage: () => TmpUsage;
   taskStatuses: () => Record<string, WorktreeTaskEvent>;
   taskStartedAt: () => Record<string, number>;
   pendingDeletes: () => Record<string, boolean>;
@@ -27,7 +25,6 @@ export type DashboardContextProps = {
   getScriptLogs: (workspaceName: string, worktreeName: string) => LogLine[];
   clearScriptLogs: (workspaceName: string, worktreeName: string) => void;
   focusEditor: (worktreePath: string) => void;
-  nukeTmp: () => void;
   updateWorkspaceConfig: (name: string, config: WorkspaceConfig) => void;
 };
 

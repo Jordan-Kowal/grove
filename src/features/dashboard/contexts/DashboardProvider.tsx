@@ -17,7 +17,6 @@ import {
   ClaudeStatus,
   type LogLine,
   TaskStatus,
-  type TmpUsage,
   type WailsEvent,
   type Workspace,
   type WorkspaceConfig,
@@ -46,11 +45,6 @@ export type DashboardProviderProps = {
 export const DashboardProvider = (props: DashboardProviderProps) => {
   const { settings } = useSettingsContext();
   const [workspaces, setWorkspaces] = createSignal<Workspace[]>([]);
-  const [tmpUsage, setTmpUsage] = createSignal<TmpUsage>({
-    sizeBytes: 0,
-    sizeFormatted: "0 B",
-    fileCount: 0,
-  });
   const [taskStatuses, setTaskStatuses] = createSignal<
     Record<string, WorktreeTaskEvent>
   >({});
@@ -82,19 +76,12 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     MonitorService.GetWorkspaces()
       .then((ws) => setWorkspaces(ws))
       .catch((e) => console.error("[grove] initial GetWorkspaces failed:", e));
-    MonitorService.GetTmpUsage()
-      .then(setTmpUsage)
-      .catch((e) => console.error("[grove] initial GetTmpUsage failed:", e));
-
     const unsubWorkspaces = Events.On(
       "workspaces-updated",
       (event: WailsEvent<Workspace[]>) => {
         setWorkspaces(mergeWorkspaces(event.data));
       },
     );
-    const unsubTmp = Events.On("tmp-updated", (event: WailsEvent<TmpUsage>) => {
-      setTmpUsage(event.data);
-    });
     const unsubTask = Events.On(
       "worktree-task",
       (event: WailsEvent<WorktreeTaskEvent>) => {
@@ -157,7 +144,6 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
 
     onCleanup(() => {
       unsubWorkspaces();
-      unsubTmp();
       unsubTask();
       unsubLog();
       for (const timer of taskTimers.values()) clearTimeout(timer);
@@ -331,12 +317,6 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     }
   };
 
-  const nukeTmp = () => {
-    MonitorService.NukeTmpFiles().catch((e) =>
-      console.error("[grove] nukeTmpFiles failed:", e),
-    );
-  };
-
   const updateWorkspaceConfig = async (
     name: string,
     config: WorkspaceConfig,
@@ -351,7 +331,6 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
 
   const contextValue: DashboardContextProps = {
     workspaces,
-    tmpUsage,
     taskStatuses,
     taskStartedAt,
     pendingDeletes,
@@ -369,7 +348,6 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     getScriptLogs,
     clearScriptLogs,
     focusEditor,
-    nukeTmp,
     updateWorkspaceConfig,
   };
 
