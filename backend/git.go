@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// parseGitDiffStat parses the output of `git diff --stat` and returns file count, insertions, deletions.
+// parseGitDiffStat parses the output of `git diff --shortstat` and returns file count, insertions, deletions.
 func parseGitDiffStat(output string) (files, insertions, deletions int) {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) == 0 {

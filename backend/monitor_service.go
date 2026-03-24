@@ -64,6 +64,8 @@ func (s *MonitorService) ServiceStartup(_ context.Context, _ application.Service
 	application.Get().Event.On("refresh-requested", func(_ *application.CustomEvent) {
 		s.RefreshNow()
 	})
+	// Populate workspaces before launching pollers so pollGit sees the worktree list.
+	s.refreshWorkspaces()
 	go s.pollClaude()
 	go s.pollGit()
 	go s.pollTmp()
@@ -259,8 +261,6 @@ func (s *MonitorService) refreshWorkspaces() {
 				wt.FilesChanged = old.FilesChanged
 				wt.Insertions = old.Insertions
 				wt.Deletions = old.Deletions
-				wt.HasUncommittedChanges = old.HasUncommittedChanges
-				wt.HasUnpushedCommits = old.HasUnpushedCommits
 				wt.ClaudeStatus = old.ClaudeStatus
 			}
 		}
@@ -271,7 +271,7 @@ func (s *MonitorService) refreshWorkspaces() {
 
 // --- Git diff refresh ---
 
-// refreshGit updates git diff/status data on all cached worktrees.
+// refreshGit updates git diff/status data on all cached worktrees concurrently.
 func (s *MonitorService) refreshGit() {
 	s.mu.RLock()
 	var paths []string
@@ -282,22 +282,26 @@ func (s *MonitorService) refreshGit() {
 	}
 	s.mu.RUnlock()
 
-	// Run git commands outside the lock
+	// Run git commands outside the lock, concurrently across worktrees
 	type gitData struct {
 		files, ins, dels int
-		uncommitted      bool
-		unpushed         bool
 	}
+	results := make([]gitData, len(paths))
+	var wg sync.WaitGroup
+	wg.Add(len(paths))
+	for i, p := range paths {
+		go func(idx int, dir string) {
+			defer wg.Done()
+			f, ins, d := getGitDiffStats(dir)
+			results[idx] = gitData{files: f, ins: ins, dels: d}
+		}(i, p)
+	}
+	wg.Wait()
+
+	// Build map from results
 	dataByPath := make(map[string]gitData, len(paths))
-	for _, p := range paths {
-		f, i, d := getGitDiffStats(p)
-		dataByPath[p] = gitData{
-			files:       f,
-			ins:         i,
-			dels:        d,
-			uncommitted: hasUncommittedChanges(p),
-			unpushed:    hasUnpushedCommits(p),
-		}
+	for i, p := range paths {
+		dataByPath[p] = results[i]
 	}
 
 	// Apply results under lock, matching by path (safe against reordering)
@@ -309,8 +313,6 @@ func (s *MonitorService) refreshGit() {
 				wt.FilesChanged = data.files
 				wt.Insertions = data.ins
 				wt.Deletions = data.dels
-				wt.HasUncommittedChanges = data.uncommitted
-				wt.HasUnpushedCommits = data.unpushed
 			}
 		}
 	}

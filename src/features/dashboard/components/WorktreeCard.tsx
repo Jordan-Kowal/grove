@@ -160,25 +160,6 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
               No
             </button>
           </div>
-          <Show
-            when={
-              props.worktree.hasUncommittedChanges ||
-              props.worktree.hasUnpushedCommits
-            }
-          >
-            <div class="flex items-center gap-1.5">
-              <Show when={props.worktree.hasUncommittedChanges}>
-                <span class="text-[10px] text-warning opacity-70">
-                  Uncommitted changes
-                </span>
-              </Show>
-              <Show when={props.worktree.hasUnpushedCommits}>
-                <span class="text-[10px] text-warning opacity-70">
-                  Unpushed commits
-                </span>
-              </Show>
-            </div>
-          </Show>
         </div>
       </Show>
 
