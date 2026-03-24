@@ -1,5 +1,5 @@
 declare module "@backend" {
-  import type { TmpUsage, Workspace, WorkspaceConfig } from "@/types/types";
+  import type { Workspace, WorkspaceConfig } from "@/types/types";
 
   export const AppService: {
     GetVersion(): Promise<string>;
@@ -8,8 +8,6 @@ declare module "@backend" {
 
   export const MonitorService: {
     GetWorkspaces(): Promise<Workspace[]>;
-    GetTmpUsage(): Promise<TmpUsage>;
-    NukeTmpFiles(): Promise<void>;
     RefreshNow(): Promise<void>;
   };
 

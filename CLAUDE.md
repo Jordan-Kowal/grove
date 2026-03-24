@@ -34,7 +34,7 @@ backend/
   editor_service.go      # Editor focus/open (configurable app)
   sound_service.go       # macOS system sound playback (bundled .aiff files)
   tray_service.go        # macOS menu bar (system tray) icon
-  types.go               # Shared types (ClaudeStatus, WorktreeInfo, TmpUsage)
+  types.go               # Shared types (ClaudeStatus, WorktreeInfo)
   git.go                 # Git diff stat parsing
   fix_path.go            # PATH resolution for GUI apps
 ```

@@ -51,7 +51,6 @@
 - **Window snapping**: Snap to left/right screen edges at full height
 - **Safe delete**: Confirmation prompt with uncommitted changes and unpushed commits warnings
 - **Live script logs**: Stream setup/teardown script output in real-time, viewable during execution and after failure
-- **/tmp monitor**: Track Claude's temporary file usage with one-click cleanup
 - **Auto-update**: One-click update from GitHub releases
 
 ## Installation

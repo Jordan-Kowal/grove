@@ -30,12 +30,6 @@ export type Workspace = {
   worktrees: WorktreeInfo[];
 };
 
-export type TmpUsage = {
-  sizeBytes: number;
-  sizeFormatted: string;
-  fileCount: number;
-};
-
 export enum TaskStep {
   GIT_WORKTREE = "git_worktree",
   SETUP_SCRIPT = "setup_script",
