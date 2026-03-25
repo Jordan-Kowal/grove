@@ -52,9 +52,18 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
     onCleanup(() => document.removeEventListener("click", handler));
   });
 
+  const isNameTaken = () => {
+    const name = newName().trim();
+    if (!name) return false;
+    const lower = name.toLowerCase();
+    return (props.workspace.worktrees ?? []).some(
+      (wt) => wt.name.toLowerCase() === lower,
+    );
+  };
+
   const handleAdd = () => {
     const name = newName().trim();
-    if (name) {
+    if (name && !isNameTaken()) {
       props.onCreateWorktree(name);
       setNewName("");
       setShowAddInput(false);
@@ -183,6 +192,7 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
               ref={(el) => setTimeout(() => el.focus(), 0)}
               type="text"
               class="input input-xs input-bordered w-full text-xs"
+              classList={{ "input-error": isNameTaken() }}
               placeholder="Worktree name..."
               value={newName()}
               onInput={(e) => {
@@ -195,6 +205,9 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
               }}
               onKeyDown={handleKeyDown}
             />
+            <Show when={isNameTaken()}>
+              <p class="text-[9px] text-error mt-0.5">Name already taken</p>
+            </Show>
           </div>
         </Show>
 
