@@ -2,6 +2,7 @@ import {
   ChevronDown,
   ChevronRight,
   EllipsisVertical,
+  ExternalLink,
   Plus,
 } from "lucide-solid";
 import {
@@ -26,6 +27,7 @@ type WorkspaceSectionProps = {
   onCancelDelete: (name: string) => void;
   onForceRemoveWorktree: (name: string) => void;
   onRemoveWorkspace: () => void;
+  onOpenWorkspace: () => void;
   onClickWorktree: (path: string) => void;
   onCancelTask: (worktreeName: string) => void;
   onRetrySetup: (worktreeName: string) => void;
@@ -102,6 +104,14 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
           </span>
         </button>
         <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0"
+            onClick={props.onOpenWorkspace}
+            title="Open in editor"
+          >
+            <ExternalLink size={12} />
+          </button>
           <button
             type="button"
             class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0"

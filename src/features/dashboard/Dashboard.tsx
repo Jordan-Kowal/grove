@@ -71,6 +71,7 @@ export const Dashboard: Component<DashboardProps> = (props) => {
                   ctx.forceRemoveWorktree(ws.name, n)
                 }
                 onRemoveWorkspace={() => ctx.removeWorkspace(ws.name)}
+                onOpenWorkspace={() => ctx.focusEditor(ws.config.repoPath)}
                 onClickWorktree={ctx.focusEditor}
                 onCancelTask={(n) => ctx.cancelTask(ws.name, n)}
                 onRetrySetup={(n) => ctx.retrySetup(ws.name, n)}
