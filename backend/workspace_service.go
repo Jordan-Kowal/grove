@@ -291,6 +291,13 @@ func (s *WorkspaceService) createWorktreeAsync(workspaceName, worktreeName strin
 
 	worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
 
+	// Fail early if the directory already exists — never destroy existing work
+	if info, err := os.Stat(worktreePath); err == nil && info.IsDir() {
+		s.emitTask(workspaceName, worktreeName, StepGitWorktree, StatusFailed,
+			fmt.Sprintf("directory %q already exists", worktreePath))
+		return
+	}
+
 	// Step 1: git worktree add
 	s.emitTask(workspaceName, worktreeName, StepGitWorktree, StatusInProgress, "")
 
@@ -311,8 +318,7 @@ func (s *WorkspaceService) createWorktreeAsync(workspaceName, worktreeName strin
 	out, err := cmd.CombinedOutput()
 
 	if err != nil && strings.Contains(string(out), "already exists") {
-		// Branch exists — reuse it
-		_ = os.RemoveAll(worktreePath)
+		// Branch exists — reuse it (directory cannot exist thanks to the early check above)
 		cmd = exec.Command("git", "-C", config.RepoPath, "worktree", "add", worktreePath, worktreeName) // #nosec G204
 		s.mu.Lock()
 		s.runningCmds[key] = cmd
