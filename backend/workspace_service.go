@@ -631,7 +631,7 @@ func getGitBranch(dir string) string {
 
 // getGitDiffStats returns diff statistics for a directory.
 func getGitDiffStats(dir string) (files, insertions, deletions int) {
-	cmd := exec.Command("git", "-C", dir, "--no-optional-locks", "diff", "--shortstat") // #nosec G204
+	cmd := exec.Command("git", "-C", dir, "--no-optional-locks", "diff", "HEAD", "--shortstat") // #nosec G204
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, 0, 0
