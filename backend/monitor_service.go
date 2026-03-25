@@ -361,7 +361,31 @@ func (s *MonitorService) refreshClaude() {
 	}
 }
 
-const doneDuration = 10 * time.Second
+// DismissDone immediately transitions a worktree from "done" to "idle",
+// cancelling any pending done-expiry timer. No-op if the path is not in "done" state.
+func (s *MonitorService) DismissDone(path string) {
+	s.mu.Lock()
+	if timer, ok := s.doneTimers[path]; ok {
+		timer.Stop()
+		delete(s.doneTimers, path)
+	}
+	if s.prevStatuses[path] != ClaudeStatusDone {
+		s.mu.Unlock()
+		return
+	}
+	s.prevStatuses[path] = ClaudeStatusIdle
+	for i := range s.workspaces {
+		for j := range s.workspaces[i].Worktrees {
+			if s.workspaces[i].Worktrees[j].Path == path {
+				s.workspaces[i].Worktrees[j].ClaudeStatus = ClaudeStatusIdle
+			}
+		}
+	}
+	s.mu.Unlock()
+	application.Get().Event.Emit("workspaces-updated", s.GetWorkspaces())
+}
+
+const doneDuration = 30 * time.Minute
 
 // scheduleDoneExpiry starts a timer that transitions a worktree from "done" to "idle"
 // after doneDuration and emits a workspaces-updated event. Must be called with s.mu held.

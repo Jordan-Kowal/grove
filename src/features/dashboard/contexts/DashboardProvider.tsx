@@ -296,6 +296,7 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
   };
 
   const focusEditor = async (worktreePath: string) => {
+    MonitorService.DismissDone(worktreePath);
     const editorApp = settings().editorApp;
     try {
       await EditorService.FocusEditor(worktreePath, editorApp);
