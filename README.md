@@ -1,4 +1,4 @@
-# Grove
+# 🌳 Grove 🌳
 
 <div align="middle">
   <div>
@@ -19,41 +19,35 @@
   <br />
 </div>
 
-- [Grove](#grove)
-  - [Overview](#overview)
-  - [Features](#features)
-  - [Installation](#installation)
+- [🌳 Grove 🌳](#-grove-)
+  - [📖 Overview](#-overview)
+  - [✨ Features](#-features)
+  - [📦 Installation](#-installation)
     - [Download](#download)
     - [First Run](#first-run)
-  - [Claude Code Hook Setup](#claude-code-hook-setup)
-  - [How It Works](#how-it-works)
-  - [Settings](#settings)
+  - [🔗 Claude Code Hook Setup](#-claude-code-hook-setup)
+  - [🚀 How It Works](#-how-it-works)
+  - [⚙️ Settings](#️-settings)
     - [General Settings](#general-settings)
     - [Workspace Settings](#workspace-settings)
-  - [Contributing](#contributing)
-  - [License](#license)
-  - [Support](#support)
+  - [🤝 Contributing](#-contributing)
+  - [📄 License](#-license)
+  - [💬 Support](#-support)
 
-## Overview
+## 📖 Overview
 
-**Grove** is a macOS desktop app that sits alongside your editor as a narrow sidebar. It manages git worktrees for parallel development — each worktree gets its own Claude Code session, and Grove monitors them all in real-time.
+**Grove** is a macOS desktop app that sits alongside your editor as a narrow sidebar. It manages git worktrees per workspace with custom setup/teardown scripts, opens them in your IDE in one click, and monitors any Claude Code sessions running in those directories — surfacing their status on the dashboard with sound/badge notifications.
 
-## Features
+## ✨ Features
 
-- **Workspace management**: Register git repos, create/delete named worktrees with setup and teardown scripts
-- **Collapsible workspaces**: Collapse/expand workspace sections to focus on what matters
-- **Claude Code monitoring**: Real-time session status (working, idle, waiting for permission/input)
-- **Git status**: Branch name and diff stats per worktree (polled every 10s)
-- **Editor integration**: Click a worktree card to open/focus it in your editor
-- **Sound notifications**: Audio alert when Claude finishes working
-- **Dock badge**: Red badge when Claude needs input
-- **System tray**: Optional menu bar icon to show/hide Grove
-- **Window snapping**: Snap to left/right screen edges at full height
-- **Safe delete**: Confirmation prompt with uncommitted changes and unpushed commits warnings
-- **Live script logs**: Stream setup/teardown script output in real-time, viewable during execution and after failure
+- **Worktree management**: Create and remove worktrees per workspace, with git diff stats, custom setup and teardown scripts, and live logs
+- **Claude Code monitoring**: Auto-detect Claude Code sessions in worktree directories, display live status, and notify with sound and dock badge
+- **Open in IDE**: Pick your editor (Zed, VS Code, Cursor, etc.) and open any worktree or workspace root in one click
+- **Sidebar mode**: Dock the window to the side of the screen, keep it always on top, and open your IDE in the remaining space
+- **Customizable**: Theme, notification sounds, dock badge, system tray icon, per-workspace scripts and git settings
 - **Auto-update**: One-click update from GitHub releases
 
-## Installation
+## 📦 Installation
 
 ### Download
 
@@ -80,107 +74,42 @@ On macOS, you may see a security warning when first opening the app. To resolve 
 2. Click **"Open Anyway"** next to the Grove warning
 3. Alternatively, right-click the app and select **"Open"** from the context menu
 
-## Claude Code Hook Setup
+## 🔗 Claude Code Hook Setup
 
-Grove detects Claude session status via a hook script at `~/.grove/hook.sh`, automatically installed when the app starts. Add the following hooks to `~/.claude/settings.json`:
+Grove automatically installs a hook script at `~/.grove/hook.sh` and merges the required hooks into `~/.claude/settings.json` on startup. No manual configuration needed.
 
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.grove/hook.sh working",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.grove/hook.sh working",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.grove/hook.sh permission",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "elicitation_dialog",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.grove/hook.sh question",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.grove/hook.sh done",
-            "async": true
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+## 🚀 How It Works
 
-## How It Works
+- **Storage**: All data lives in `~/.grove/` — workspace configs in `projects/<name>/config.json`, worktrees in `projects/<name>/worktrees/`
+- **Worktree lifecycle**: Creating a worktree runs `git worktree add` then your setup script. Deleting runs your teardown script then `git worktree remove`
+- **Git diffs**: Captured by polling `git diff HEAD --shortstat` on each worktree every 10 seconds
+- **Claude monitoring**: On startup, Grove installs a hook script (`~/.grove/hook.sh`) and merges hooks into `~/.claude/settings.json`. These hooks make Claude write session state (working, permission, question, done) as JSON files in `~/.grove/sessions/`. Grove polls that directory every 2 seconds to update the dashboard
+- **Sounds**: Notification sounds (`.aiff`) are embedded in the binary via Go's `embed` package and extracted to a cache on first use
+- **Auto-update**: The frontend checks the GitHub Releases API for newer versions; the backend downloads and installs via `setup.sh`
 
-1. **Add a workspace** — click `+` and select a git repository folder
-2. **Create worktrees** — click `+` on a workspace, enter a name. Grove runs `git worktree add` from your configured base branch, then your setup script
-3. **Monitor** — worktree cards show branch, diff stats, and Claude session status in real-time
-4. **Click to open** — click a worktree card to focus/open it in your editor
-5. **Delete** — use the `...` menu to remove worktrees (confirmation with uncommitted/unpushed warnings, runs teardown script, then git remove)
-
-Workspace config is stored in `~/.grove/projects/<name>/config.json`. Worktrees are created in `~/.grove/projects/<name>/worktrees/`.
-
-## Settings
+## ⚙️ Settings
 
 ### General Settings
 
-| Section       | Setting                                    | Default | Description                                               |
-| ------------- | ------------------------------------------ | ------- | --------------------------------------------------------- |
-| Display       | Theme                                      | Nord    | Switch between Nord and Forest themes                     |
-| Display       | Keep window on top                         | On      | Keep Grove above other windows                            |
-| Display       | Snap to screen edges                       | On      | Snap window to left/right edges at full height            |
-| Notifications | Play sound when Claude finishes            | On      | Audio alert with selectable sound (Glass, Ping, Pop, etc) |
-| Notifications | Show menu bar icon                         | Off     | System tray icon to show/hide Grove                       |
-| Notifications | Show dock badge when Claude needs input    | On      | Red badge on dock icon                                    |
-| Editor        | Default editor                             | Zed     | macOS app name for editor integration                     |
+| Section       | Setting            | Default                  | Description                                                         |
+| ------------- | ------------------ | ------------------------ | ------------------------------------------------------------------- |
+| Display       | Theme              | Forest                   | Switch between Nord and Forest themes                               |
+| Display       | Keep window on top | On                       | Keep Grove above other windows                                      |
+| Display       | Dock to edge       | On                       | Snap to screen edge at full height, open editors in remaining space |
+| Notifications | Play sound         | When done or needs input | Never, when done or needs input, or only when needs input           |
+| Notifications | Show menu bar icon | Off                      | System tray icon to show/hide Grove                                 |
+| Editor        | Default editor     | Zed                      | macOS app name (e.g. Zed, Visual Studio Code, Cursor)               |
 
 ### Workspace Settings
 
-| Setting                   | Default     | Description                                            |
-| ------------------------- | ----------- | ------------------------------------------------------ |
-| Branch new worktrees from | origin/main | Start point for new worktrees                          |
-| Delete local branch       | On          | Clean up the branch after deleting a worktree          |
-| Setup script              | —           | Shell command to run after creating a worktree         |
-| Teardown script           | —           | Shell command to run before removing a worktree        |
+| Setting                   | Default     | Description                                     |
+| ------------------------- | ----------- | ----------------------------------------------- |
+| Branch new worktrees from | origin/main | Start point for new worktrees                   |
+| Delete local branch       | On          | Clean up the branch after deleting a worktree   |
+| Setup script              | —           | Shell command to run after creating a worktree  |
+| Teardown script           | —           | Shell command to run before removing a worktree |
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -190,11 +119,11 @@ Workspace config is stored in `~/.grove/projects/<name>/config.json`. Worktrees 
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
+## 💬 Support
 
 - **Issues**: [GitHub Issues](https://github.com/Jordan-Kowal/grove/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Jordan-Kowal/grove/discussions)

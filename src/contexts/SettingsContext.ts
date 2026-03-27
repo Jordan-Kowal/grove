@@ -16,7 +16,7 @@ export type Settings = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: Theme.NORD,
+  theme: Theme.FOREST,
   alwaysOnTop: true,
   snapToEdges: true,
   soundMode: "all",

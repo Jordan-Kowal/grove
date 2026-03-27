@@ -11,7 +11,7 @@ Reference these for project details:
 
 ## Project Overview
 
-Lightweight worktree dashboard — manage workspaces, monitor Claude Code sessions, git diffs, and /tmp disk across multiple worktrees.
+Sidebar app for managing git worktrees per workspace and monitoring Claude Code sessions running in those directories.
 
 Tech stack: SolidJS, Vite, Tailwind CSS v4 + DaisyUI, Wails v3 (Go), Lucide Solid, Bun
 
@@ -23,7 +23,9 @@ src/
   components/ui/         # Shared UI primitives
   contexts/              # Shared contexts (Context.ts + Provider.tsx pattern)
   hooks/                 # Shared hooks
+  styles/                # Global styles (Tailwind entry point)
   types/                 # Shared types (types.ts)
+  utils/                 # Shared utilities (ANSI parsing, version check)
   backend.d.ts           # Type declarations for Wails-generated bindings
 
 backend/
@@ -32,8 +34,10 @@ backend/
   monitor_service.go     # Polling, Claude status detection, event emission
   app_service.go         # Version info, auto-update via GitHub releases
   editor_service.go      # Editor focus/open (configurable app)
+  snap_service.go        # Window edge snapping, editor positioning
   sound_service.go       # macOS system sound playback (bundled .aiff files)
   tray_service.go        # macOS menu bar (system tray) icon
+  claude_settings.go     # Claude Code hook registration and validation
   types.go               # Shared types (ClaudeStatus, WorktreeInfo)
   git.go                 # Git diff stat parsing
   fix_path.go            # PATH resolution for GUI apps
@@ -145,6 +149,14 @@ src/components/index.ts           (no root barrel)
 
 **Testing:**
 
-- Table-driven tests with subtests (`t.Run`), test fixtures in `testdata/`
+- Table-driven tests with subtests (`t.Run`)
 - Race detector: `go test -race ./...`
 - Mock external dependencies via interfaces
+
+## Documentation
+
+After completing any change, check whether documentation needs updating:
+
+- **README.md** — update if features, settings, or "How It Works" internals changed
+- **CHANGELOG.md** — add an entry for any user-facing change (new feature, enhancement, bugfix, removal)
+- **CONTRIBUTING.md** — update if prerequisites, setup steps, or developer commands changed
