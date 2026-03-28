@@ -13,6 +13,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
+import { BranchNameInput } from "@/components/ui";
 import type { Workspace, WorktreeTaskEvent } from "@/types/types";
 import { WorktreeCard } from "./WorktreeCard";
 
@@ -35,6 +36,9 @@ type WorkspaceSectionProps = {
   onClearTaskStatus: (worktreeName: string) => void;
   onOpenLogs: (worktreeName: string) => void;
   hasLogs: (worktreeName: string) => boolean;
+  onRebase: (worktreeName: string, targetBranch: string) => void;
+  onCheckout: (worktreeName: string, branch: string) => void;
+  onNewBranch: (worktreeName: string, branchName: string) => void;
 };
 
 export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
@@ -42,7 +46,6 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
   const [showMenu, setShowMenu] = createSignal(false);
   const [showAddInput, setShowAddInput] = createSignal(false);
   const [confirmRemove, setConfirmRemove] = createSignal(false);
-  const [newName, setNewName] = createSignal("");
 
   // Close menu on outside click
   createEffect(() => {
@@ -52,31 +55,13 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
     onCleanup(() => document.removeEventListener("click", handler));
   });
 
-  const isNameTaken = () => {
-    const name = newName().trim();
-    if (!name) return false;
-    const lower = name.toLowerCase();
-    return (props.workspace.worktrees ?? []).some(
-      (wt) => wt.name.toLowerCase() === lower,
-    );
-  };
+  const worktreeNames = () =>
+    (props.workspace.worktrees ?? []).map((wt) => wt.name);
 
-  const handleAdd = () => {
-    const name = newName().trim();
-    if (name && !isNameTaken()) {
-      props.onCreateWorktree(name);
-      setNewName("");
-      setShowAddInput(false);
-    }
-  };
+  const existingBranches = () =>
+    (props.workspace.worktrees ?? []).map((wt) => wt.branch).filter(Boolean);
 
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter") handleAdd();
-    if (e.key === "Escape") {
-      setShowAddInput(false);
-      setNewName("");
-    }
-  };
+  const baseBranch = () => props.workspace.config.baseBranch || "origin/main";
 
   const getTaskStatus = (worktreeName: string) => {
     const key = `${props.workspace.name}/${worktreeName}`;
@@ -188,26 +173,15 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
         {/* Add worktree input */}
         <Show when={showAddInput()}>
           <div class="px-2 pb-1">
-            <input
-              ref={(el) => setTimeout(() => el.focus(), 0)}
-              type="text"
-              class="input input-xs input-bordered w-full text-xs"
-              classList={{ "input-error": isNameTaken() }}
+            <BranchNameInput
               placeholder="Worktree name..."
-              value={newName()}
-              onInput={(e) => {
-                const sanitized = e.currentTarget.value.replace(
-                  /[^a-zA-Z0-9\-_]/g,
-                  "",
-                );
-                e.currentTarget.value = sanitized;
-                setNewName(sanitized);
+              forbiddenNames={worktreeNames()}
+              onSubmit={(name) => {
+                props.onCreateWorktree(name);
+                setShowAddInput(false);
               }}
-              onKeyDown={handleKeyDown}
+              onCancel={() => setShowAddInput(false)}
             />
-            <Show when={isNameTaken()}>
-              <p class="text-[9px] text-error mt-0.5">Name already taken</p>
-            </Show>
           </div>
         </Show>
 
@@ -233,6 +207,9 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
               {(wt) => (
                 <WorktreeCard
                   worktree={wt}
+                  workspaceName={props.workspace.name}
+                  baseBranch={baseBranch()}
+                  existingBranches={existingBranches()}
                   deletePending={isDeletePending(wt.name)}
                   hasLogs={props.hasLogs(wt.name)}
                   taskEvent={getTaskStatus(wt.name)}
@@ -247,6 +224,9 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
                   onRetryArchive={() => props.onRetryArchive(wt.name)}
                   onClearTaskStatus={() => props.onClearTaskStatus(wt.name)}
                   onOpenLogs={() => props.onOpenLogs(wt.name)}
+                  onRebase={(branch) => props.onRebase(wt.name, branch)}
+                  onCheckout={(branch) => props.onCheckout(wt.name, branch)}
+                  onNewBranch={(name) => props.onNewBranch(wt.name, name)}
                 />
               )}
             </For>

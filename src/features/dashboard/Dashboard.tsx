@@ -79,6 +79,13 @@ export const Dashboard: Component<DashboardProps> = (props) => {
                 onClearTaskStatus={(n) => ctx.clearTaskStatus(ws.name, n)}
                 onOpenLogs={(n) => props.onOpenLogs(`${ws.name}/${n}`)}
                 hasLogs={(n) => ctx.getScriptLogs(ws.name, n).length > 0}
+                onRebase={(n, branch) => ctx.rebaseWorktree(ws.name, n, branch)}
+                onCheckout={(n, branch) =>
+                  ctx.checkoutBranch(ws.name, n, branch)
+                }
+                onNewBranch={(n, branchName) =>
+                  ctx.newBranchOnWorktree(ws.name, n, branchName)
+                }
               />
             )}
           </For>

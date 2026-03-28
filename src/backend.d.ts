@@ -1,5 +1,5 @@
 declare module "@backend" {
-  import type { Workspace, WorkspaceConfig } from "@/types/types";
+  import type { BranchInfo, Workspace, WorkspaceConfig } from "@/types/types";
 
   export const AppService: {
     GetVersion(): Promise<string>;
@@ -27,6 +27,22 @@ declare module "@backend" {
     RetryArchive(workspaceName: string, worktreeName: string): Promise<void>;
     GetWorkspaceConfig(name: string): Promise<WorkspaceConfig>;
     UpdateWorkspaceConfig(name: string, config: WorkspaceConfig): Promise<void>;
+    ListBranches(workspaceName: string): Promise<BranchInfo[]>;
+    RebaseWorktree(
+      workspaceName: string,
+      worktreeName: string,
+      targetBranch: string,
+    ): Promise<void>;
+    CheckoutBranch(
+      workspaceName: string,
+      worktreeName: string,
+      branch: string,
+    ): Promise<void>;
+    NewBranchOnWorktree(
+      workspaceName: string,
+      worktreeName: string,
+      branchName: string,
+    ): Promise<void>;
     OpenFolderDialog(): Promise<string>;
   };
 

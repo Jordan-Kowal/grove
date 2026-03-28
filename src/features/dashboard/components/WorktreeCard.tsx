@@ -6,7 +6,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { StatusBadge } from "@/components/ui";
+import { BranchNameInput, BranchSelect, StatusBadge } from "@/components/ui";
 import {
   TaskStatus,
   TaskStep,
@@ -15,8 +15,23 @@ import {
 } from "@/types/types";
 import { TaskStatusBar } from "./TaskStatusBar";
 
+enum Action {
+  REBASE = "rebase",
+  CHECKOUT = "checkout",
+  NEW_BRANCH = "newBranch",
+}
+
+const ACTION_LABELS: Record<Action, string> = {
+  [Action.REBASE]: "Rebase on branch",
+  [Action.CHECKOUT]: "Checkout branch",
+  [Action.NEW_BRANCH]: "New branch",
+};
+
 type WorktreeCardProps = {
   worktree: WorktreeInfo;
+  workspaceName: string;
+  baseBranch: string;
+  existingBranches: string[];
   deletePending: boolean;
   hasLogs: boolean;
   taskEvent?: WorktreeTaskEvent;
@@ -31,10 +46,15 @@ type WorktreeCardProps = {
   onRetryArchive: () => void;
   onClearTaskStatus: () => void;
   onOpenLogs: () => void;
+  onRebase: (targetBranch: string) => void;
+  onCheckout: (branch: string) => void;
+  onNewBranch: (branchName: string) => void;
 };
 
 export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
   const [showMenu, setShowMenu] = createSignal(false);
+  const [activeAction, setActiveAction] = createSignal<Action | null>(null);
+  const [selectedBranch, setSelectedBranch] = createSignal("");
 
   const task = () => props.taskEvent;
   const step = () => task()?.step;
@@ -44,15 +64,21 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
   const isInProgress = () => status() === TaskStatus.IN_PROGRESS;
   const isFailed = () => status() === TaskStatus.FAILED;
 
-  // Card is non-actionable during git worktree creation, removal, or delete confirmation
+  // Card is non-actionable during git worktree creation, removal, delete confirmation, or active action
   const isCardDisabled = () =>
     props.deletePending ||
-    ((step() === TaskStep.GIT_WORKTREE || step() === TaskStep.GIT_REMOVE) &&
+    activeAction() !== null ||
+    ((step() === TaskStep.GIT_WORKTREE ||
+      step() === TaskStep.GIT_REMOVE ||
+      step() === TaskStep.REBASE ||
+      step() === TaskStep.CHECKOUT ||
+      step() === TaskStep.NEW_BRANCH) &&
       isInProgress());
 
   // Show menu when idle, or during setup/archive (card is actionable)
   const showMenuAllowed = () =>
     !props.deletePending &&
+    !activeAction() &&
     (!task() || isFailed() || step() !== TaskStep.GIT_WORKTREE);
 
   // Close menu on outside click
@@ -66,6 +92,29 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
   const handleClick = () => {
     if (isCardDisabled()) return;
     props.onClick();
+  };
+
+  const openAction = (action: Action) => {
+    setShowMenu(false);
+    setSelectedBranch(
+      action === Action.REBASE ? props.baseBranch || "origin/main" : "",
+    );
+    setActiveAction(action);
+  };
+
+  const cancelAction = () => {
+    setActiveAction(null);
+    setSelectedBranch("");
+  };
+
+  // Only handles rebase/checkout — newBranch submits via BranchNameInput.onSubmit directly
+  const confirmAction = () => {
+    const action = activeAction();
+    const branch = selectedBranch();
+    setActiveAction(null);
+    setSelectedBranch("");
+    if (action === Action.REBASE && branch) props.onRebase(branch);
+    if (action === Action.CHECKOUT && branch) props.onCheckout(branch);
   };
 
   return (
@@ -113,7 +162,43 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
             </button>
             <Show when={showMenu()}>
               <div class="absolute right-0 top-full z-50 mt-1">
-                <ul class="menu menu-xs bg-base-300 rounded-box shadow-lg w-36 p-1">
+                <ul class="menu menu-xs bg-base-300 rounded-box shadow-lg w-40 p-1">
+                  <li>
+                    <button
+                      type="button"
+                      class="text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAction(Action.REBASE);
+                      }}
+                    >
+                      Rebase on branch...
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      class="text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAction(Action.CHECKOUT);
+                      }}
+                    >
+                      Checkout branch...
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      class="text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAction(Action.NEW_BRANCH);
+                      }}
+                    >
+                      New branch...
+                    </button>
+                  </li>
                   <li>
                     <button
                       type="button"
@@ -163,8 +248,65 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
         </div>
       </Show>
 
+      {/* Action panel (rebase / checkout / new branch) */}
+      <Show when={activeAction()}>
+        <div class="pl-4.5 mt-0.5 space-y-1">
+          <span class="text-[10px] opacity-60">
+            {ACTION_LABELS[activeAction()!]}
+          </span>
+          <Show
+            when={
+              activeAction() === Action.REBASE ||
+              activeAction() === Action.CHECKOUT
+            }
+          >
+            <BranchSelect
+              workspaceName={props.workspaceName}
+              value={selectedBranch()}
+              onSelect={setSelectedBranch}
+            />
+          </Show>
+          <Show when={activeAction() === Action.NEW_BRANCH}>
+            <BranchNameInput
+              placeholder="Branch name..."
+              forbiddenNames={props.existingBranches}
+              onSubmit={(name) => {
+                setActiveAction(null);
+                props.onNewBranch(name);
+              }}
+              onCancel={cancelAction}
+            />
+          </Show>
+          <Show when={activeAction() !== "newBranch"}>
+            <div class="flex justify-end gap-1">
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] opacity-50 hover:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cancelAction();
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] text-info opacity-70 hover:opacity-100"
+                disabled={!selectedBranch()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  confirmAction();
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </Show>
+        </div>
+      </Show>
+
       {/* Task status bar */}
-      <Show when={task() && !props.deletePending}>
+      <Show when={task() && !props.deletePending && !activeAction()}>
         <TaskStatusBar
           taskEvent={task()!}
           startedAt={props.taskStartedAt}

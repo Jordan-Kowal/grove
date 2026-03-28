@@ -26,6 +26,9 @@ const (
 	StepSetupScript   TaskStep = "setup_script"
 	StepArchiveScript TaskStep = "archive_script"
 	StepGitRemove     TaskStep = "git_remove"
+	StepRebase        TaskStep = "rebase"
+	StepCheckout      TaskStep = "checkout"
+	StepNewBranch     TaskStep = "new_branch"
 )
 
 // TaskStatus identifies the state of the current step.
@@ -45,6 +48,8 @@ type WorktreeTaskEvent struct {
 	Status        TaskStatus `json:"status"`
 	Error         string     `json:"error,omitempty"`
 }
+
+const unknownBranch = "unknown"
 
 var validNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9\-_]*$`)
 
@@ -264,6 +269,124 @@ func (s *WorkspaceService) UpdateWorkspaceConfig(name string, config WorkspaceCo
 		return fmt.Errorf("invalid workspace name: %w", err)
 	}
 	return s.writeConfig(name, config)
+}
+
+// ListBranches returns all local and remote branches for a workspace.
+func (s *WorkspaceService) ListBranches(workspaceName string) ([]BranchInfo, error) {
+	if err := validateName(workspaceName); err != nil {
+		return nil, fmt.Errorf("invalid workspace name: %w", err)
+	}
+	config := s.readConfig(workspaceName)
+	if config.RepoPath == "" {
+		return nil, fmt.Errorf("workspace not found")
+	}
+
+	cmd := exec.Command("git", "-C", config.RepoPath, "branch", "-a", "--format=%(refname)") // #nosec G204
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git branch failed: %w", err)
+	}
+
+	var branches []BranchInfo
+	seen := make(map[string]bool)
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		ref := strings.TrimSpace(line)
+		if ref == "" || strings.Contains(ref, "HEAD") {
+			continue
+		}
+		isRemote := strings.HasPrefix(ref, "refs/remotes/")
+		var name string
+		if isRemote {
+			name = strings.TrimPrefix(ref, "refs/remotes/")
+		} else {
+			name = strings.TrimPrefix(ref, "refs/heads/")
+		}
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		branches = append(branches, BranchInfo{
+			Name:     name,
+			IsRemote: isRemote,
+		})
+	}
+	return branches, nil
+}
+
+// RebaseWorktree rebases the worktree's branch onto the given target branch.
+func (s *WorkspaceService) RebaseWorktree(workspaceName, worktreeName, targetBranch string) {
+	if validateName(workspaceName) != nil || validateName(worktreeName) != nil {
+		s.emitTask(workspaceName, worktreeName, StepRebase, StatusFailed, "invalid name")
+		return
+	}
+	go func() {
+		worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
+		s.emitTask(workspaceName, worktreeName, StepRebase, StatusInProgress, "")
+		cmd := exec.Command("git", "-C", worktreePath, "rebase", targetBranch) // #nosec G204
+		if out, err := cmd.CombinedOutput(); err != nil {
+			// Abort the failed rebase to leave the worktree in a clean state
+			_ = exec.Command("git", "-C", worktreePath, "rebase", "--abort").Run() // #nosec G204
+			s.emitTask(workspaceName, worktreeName, StepRebase, StatusFailed, strings.TrimSpace(string(out)))
+			return
+		}
+		s.emitTask(workspaceName, worktreeName, StepRebase, StatusSuccess, "")
+		s.refreshMonitor()
+	}()
+}
+
+// CheckoutBranch checks out an existing branch in the worktree.
+func (s *WorkspaceService) CheckoutBranch(workspaceName, worktreeName, branch string) {
+	if validateName(workspaceName) != nil || validateName(worktreeName) != nil {
+		s.emitTask(workspaceName, worktreeName, StepCheckout, StatusFailed, "invalid name")
+		return
+	}
+	go func() {
+		worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
+		s.emitTask(workspaceName, worktreeName, StepCheckout, StatusInProgress, "")
+		cmd := exec.Command("git", "-C", worktreePath, "checkout", branch) // #nosec G204
+		if out, err := cmd.CombinedOutput(); err != nil {
+			s.emitTask(workspaceName, worktreeName, StepCheckout, StatusFailed, strings.TrimSpace(string(out)))
+			return
+		}
+		s.emitTask(workspaceName, worktreeName, StepCheckout, StatusSuccess, "")
+		s.refreshMonitor()
+	}()
+}
+
+// NewBranchOnWorktree creates a fresh branch from baseBranch on the worktree.
+func (s *WorkspaceService) NewBranchOnWorktree(workspaceName, worktreeName, branchName string) {
+	if validateName(workspaceName) != nil || validateName(worktreeName) != nil || validateName(branchName) != nil {
+		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, "invalid name")
+		return
+	}
+	go func() {
+		config := s.readConfig(workspaceName)
+		baseBranch := config.BaseBranch
+		if baseBranch == "" {
+			baseBranch = "origin/main"
+		}
+		worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
+		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusInProgress, "")
+		cmd := exec.Command("git", "-C", worktreePath, "checkout", "-b", branchName, baseBranch) // #nosec G204
+		if out, err := cmd.CombinedOutput(); err != nil {
+			s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, strings.TrimSpace(string(out)))
+			return
+		}
+		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusSuccess, "")
+
+		// Run setup script if configured (same as new worktree creation)
+		if config.SetupScript != "" {
+			s.emitTask(workspaceName, worktreeName, StepSetupScript, StatusInProgress, "")
+			s.refreshMonitor()
+			scriptErr := s.runScriptTracked(workspaceName, worktreeName, config.SetupScript, worktreePath)
+			if scriptErr != nil {
+				s.emitTask(workspaceName, worktreeName, StepSetupScript, StatusFailed, scriptErr.Error())
+			} else {
+				s.emitTask(workspaceName, worktreeName, StepSetupScript, StatusSuccess, "")
+			}
+		}
+		s.refreshMonitor()
+	}()
 }
 
 // OpenFolderDialog opens a native folder picker.
@@ -592,7 +715,8 @@ func (s *WorkspaceService) scanWorktrees(workspaceName string) []WorktreeInfo {
 	return worktrees
 }
 
-// scanWorktreeStructure returns worktrees with name/path/branch only (no git diff).
+// scanWorktreeStructure returns worktrees with name/path only (no git commands).
+// Branch and diff data are populated separately by refreshGit.
 func (s *WorkspaceService) scanWorktreeStructure(workspaceName string) []WorktreeInfo {
 	worktreesDir := filepath.Join(s.groveDir, workspaceName, "worktrees")
 	entries, err := os.ReadDir(worktreesDir)
@@ -612,21 +736,53 @@ func (s *WorkspaceService) scanWorktreeStructure(workspaceName string) []Worktre
 		worktrees = append(worktrees, WorktreeInfo{
 			Name:         entry.Name(),
 			Path:         dirPath,
-			Branch:       getGitBranch(dirPath),
 			ClaudeStatus: ClaudeStatusIdle,
 		})
 	}
 	return worktrees
 }
 
-// getGitBranch returns the current branch for a directory.
+// getGitBranch reads the current branch from the filesystem (no process spawn).
+// In a worktree, .git is a file containing "gitdir: <path>". We follow that to find HEAD.
 func getGitBranch(dir string) string {
-	cmd := exec.Command("git", "-C", dir, "rev-parse", "--abbrev-ref", "HEAD") // #nosec G204
-	out, err := cmd.Output()
+	gitPath := filepath.Join(dir, ".git")
+	info, err := os.Lstat(gitPath)
 	if err != nil {
-		return "unknown"
+		return unknownBranch
 	}
-	return strings.TrimSpace(string(out))
+
+	var headPath string
+	if info.IsDir() {
+		// Regular repo: .git/HEAD
+		headPath = filepath.Join(gitPath, "HEAD")
+	} else {
+		// Worktree: .git is a file with "gitdir: <path>"
+		data, err := os.ReadFile(gitPath) // #nosec G304
+		if err != nil {
+			return unknownBranch
+		}
+		gitdir := strings.TrimSpace(strings.TrimPrefix(string(data), "gitdir:"))
+		if !filepath.IsAbs(gitdir) {
+			gitdir = filepath.Join(dir, gitdir)
+		}
+		headPath = filepath.Join(gitdir, "HEAD")
+	}
+
+	headPath = filepath.Clean(headPath)
+	head, err := os.ReadFile(headPath) // #nosec G304 G703
+	if err != nil {
+		return unknownBranch
+	}
+	ref := strings.TrimSpace(string(head))
+	// HEAD contains "ref: refs/heads/<branch>" for normal branches
+	if strings.HasPrefix(ref, "ref: refs/heads/") {
+		return strings.TrimPrefix(ref, "ref: refs/heads/")
+	}
+	// Detached HEAD — return short hash
+	if len(ref) >= 7 {
+		return ref[:7]
+	}
+	return unknownBranch
 }
 
 // getGitDiffStats returns diff statistics for a directory.

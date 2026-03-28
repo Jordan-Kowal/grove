@@ -215,6 +215,7 @@ func (s *MonitorService) refreshWorkspaces() {
 		for j := range workspaces[i].Worktrees {
 			wt := &workspaces[i].Worktrees[j]
 			if old, ok := prevByPath[wt.Path]; ok {
+				wt.Branch = old.Branch
 				wt.FilesChanged = old.FilesChanged
 				wt.Insertions = old.Insertions
 				wt.Deletions = old.Deletions
@@ -228,7 +229,9 @@ func (s *MonitorService) refreshWorkspaces() {
 
 // --- Git diff refresh ---
 
-// refreshGit updates git diff/status data on all cached worktrees concurrently.
+// refreshGit updates branch names and git diff stats on all cached worktrees.
+// Branch names are read from the filesystem (no process spawn).
+// Diff stats are fetched concurrently via git commands.
 func (s *MonitorService) refreshGit() {
 	s.mu.RLock()
 	var paths []string
@@ -239,18 +242,23 @@ func (s *MonitorService) refreshGit() {
 	}
 	s.mu.RUnlock()
 
-	// Run git commands outside the lock, concurrently across worktrees
 	type gitData struct {
+		branch           string
 		files, ins, dels int
 	}
 	results := make([]gitData, len(paths))
+
+	// Diff stats: concurrent git commands (the expensive part)
 	var wg sync.WaitGroup
 	wg.Add(len(paths))
 	for i, p := range paths {
 		go func(idx int, dir string) {
 			defer wg.Done()
 			f, ins, d := getGitDiffStats(dir)
-			results[idx] = gitData{files: f, ins: ins, dels: d}
+			results[idx] = gitData{
+				branch: getGitBranch(dir),
+				files:  f, ins: ins, dels: d,
+			}
 		}(i, p)
 	}
 	wg.Wait()
@@ -261,12 +269,13 @@ func (s *MonitorService) refreshGit() {
 		dataByPath[p] = results[i]
 	}
 
-	// Apply results under lock, matching by path (safe against reordering)
+	// Apply results under lock
 	s.mu.Lock()
 	for i := range s.workspaces {
 		for j := range s.workspaces[i].Worktrees {
 			wt := &s.workspaces[i].Worktrees[j]
 			if data, ok := dataByPath[wt.Path]; ok {
+				wt.Branch = data.branch
 				wt.FilesChanged = data.files
 				wt.Insertions = data.ins
 				wt.Deletions = data.dels

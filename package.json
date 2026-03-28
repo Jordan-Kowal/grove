@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@wailsio/runtime": "3.0.0-alpha.79",
-    "lucide-solid": "1.1.0",
+    "lucide-solid": "1.7.0",
     "solid-js": "1.9.12"
   },
   "devDependencies": {
@@ -40,7 +40,7 @@
     "solid-devtools": "0.34.5",
     "tailwindcss": "4.2.2",
     "typescript": "6.0.2",
-    "vite": "8.0.2",
+    "vite": "8.0.3",
     "vite-plugin-solid": "2.11.11"
   }
 }

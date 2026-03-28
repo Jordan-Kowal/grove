@@ -295,6 +295,40 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     });
   };
 
+  const rebaseWorktree = (
+    workspaceName: string,
+    worktreeName: string,
+    targetBranch: string,
+  ) => {
+    WorkspaceService.RebaseWorktree(
+      workspaceName,
+      worktreeName,
+      targetBranch,
+    ).catch((e) => console.error("[grove] rebaseWorktree failed:", e));
+  };
+
+  const checkoutBranch = (
+    workspaceName: string,
+    worktreeName: string,
+    branch: string,
+  ) => {
+    WorkspaceService.CheckoutBranch(workspaceName, worktreeName, branch).catch(
+      (e) => console.error("[grove] checkoutBranch failed:", e),
+    );
+  };
+
+  const newBranchOnWorktree = (
+    workspaceName: string,
+    worktreeName: string,
+    branchName: string,
+  ) => {
+    WorkspaceService.NewBranchOnWorktree(
+      workspaceName,
+      worktreeName,
+      branchName,
+    ).catch((e) => console.error("[grove] newBranchOnWorktree failed:", e));
+  };
+
   const focusEditor = async (worktreePath: string) => {
     MonitorService.DismissDone(worktreePath);
     const editorApp = settings().editorApp;
@@ -348,6 +382,9 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     clearTaskStatus,
     getScriptLogs,
     clearScriptLogs,
+    rebaseWorktree,
+    checkoutBranch,
+    newBranchOnWorktree,
     focusEditor,
     updateWorkspaceConfig,
   };

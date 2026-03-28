@@ -15,3 +15,9 @@ type Workspace struct {
 	Config    WorkspaceConfig `json:"config"`
 	Worktrees []WorktreeInfo  `json:"worktrees"`
 }
+
+// BranchInfo describes a git branch (local or remote).
+type BranchInfo struct {
+	Name     string `json:"name"`
+	IsRemote bool   `json:"isRemote"`
+}

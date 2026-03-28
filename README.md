@@ -40,7 +40,7 @@
 
 ## ✨ Features
 
-- **Worktree management**: Create and remove worktrees per workspace, with git diff stats, custom setup and teardown scripts, and live logs
+- **Worktree management**: Create and remove worktrees per workspace, with git diff stats, custom setup and teardown scripts, live logs, and quick actions (rebase on branch, checkout branch, start fresh from new branch)
 - **Claude Code monitoring**: Auto-detect Claude Code sessions in worktree directories, display live status, and notify with sound and dock badge
 - **Open in IDE**: Pick your editor (Zed, VS Code, Cursor, etc.) and open any worktree or workspace root in one click
 - **Sidebar mode**: Dock the window to the side of the screen, keep it always on top, and open your IDE in the remaining space

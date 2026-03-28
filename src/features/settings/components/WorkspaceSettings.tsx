@@ -9,6 +9,7 @@ import {
   on,
   onCleanup,
 } from "solid-js";
+import { BranchSelect } from "@/components/ui";
 import type { WorkspaceConfig } from "@/types/types";
 
 type SectionProps = {
@@ -109,20 +110,18 @@ export const WorkspaceSettings: Component<WorkspaceSettingsProps> = (props) => {
 
       {/* Git */}
       <Section title="Git" icon={<GitBranch size={12} />}>
-        <label class="block space-y-1">
+        <div class="block space-y-1">
           <span class="text-xs font-medium opacity-60">
             Branch new worktrees from
           </span>
-          <input
-            type="text"
-            class="input input-bordered w-full text-xs font-mono"
-            placeholder="origin/main"
-            value={config().baseBranch}
-            disabled={!loaded()}
-            onInput={(e) => updateConfig({ baseBranch: e.currentTarget.value })}
+          <BranchSelect
+            workspaceName={props.name}
+            value={config().baseBranch || "origin/main"}
+            onSelect={(branch) => updateConfig({ baseBranch: branch })}
+            class="select select-bordered w-full text-xs font-mono"
           />
           <p class="text-[10px] opacity-30">Default: origin/main</p>
-        </label>
+        </div>
 
         <label class="flex items-center justify-between">
           <span class="text-xs font-medium opacity-60">

@@ -24,6 +24,21 @@ export type DashboardContextProps = {
   clearTaskStatus: (workspaceName: string, worktreeName: string) => void;
   getScriptLogs: (workspaceName: string, worktreeName: string) => LogLine[];
   clearScriptLogs: (workspaceName: string, worktreeName: string) => void;
+  rebaseWorktree: (
+    workspaceName: string,
+    worktreeName: string,
+    targetBranch: string,
+  ) => void;
+  checkoutBranch: (
+    workspaceName: string,
+    worktreeName: string,
+    branch: string,
+  ) => void;
+  newBranchOnWorktree: (
+    workspaceName: string,
+    worktreeName: string,
+    branchName: string,
+  ) => void;
   focusEditor: (worktreePath: string) => void;
   updateWorkspaceConfig: (name: string, config: WorkspaceConfig) => void;
 };

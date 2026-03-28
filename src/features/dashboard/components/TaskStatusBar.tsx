@@ -14,6 +14,9 @@ const STEP_LABELS: Record<TaskStep, string> = {
   [TaskStep.SETUP_SCRIPT]: "Setup script",
   [TaskStep.ARCHIVE_SCRIPT]: "Archive script",
   [TaskStep.GIT_REMOVE]: "Removing worktree",
+  [TaskStep.REBASE]: "Rebase",
+  [TaskStep.CHECKOUT]: "Checkout",
+  [TaskStep.NEW_BRANCH]: "New branch",
 };
 
 type TaskStatusBarProps = {
@@ -136,6 +139,25 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
             props.onClearTaskStatus();
             props.onForceRemove();
           }}
+        />
+      </Show>
+
+      {/* Failed: rebase / checkout / new branch */}
+      <Show
+        when={
+          isFailed() &&
+          (step() === TaskStep.REBASE ||
+            step() === TaskStep.CHECKOUT ||
+            step() === TaskStep.NEW_BRANCH)
+        }
+      >
+        <X size={10} class="text-error shrink-0" />
+        <span class="text-[10px] text-error flex-1">{stepLabel()} failed</span>
+        <LogsButton />
+        <ActionButton
+          tip="Dismiss"
+          icon={<X size={10} />}
+          onClick={props.onClearTaskStatus}
         />
       </Show>
     </div>

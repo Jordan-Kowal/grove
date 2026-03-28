@@ -100,8 +100,8 @@ func TestGetGitBranch(t *testing.T) {
 
 func TestGetGitBranchInvalidDir(t *testing.T) {
 	branch := getGitBranch("/nonexistent/path")
-	if branch != "unknown" {
-		t.Errorf("getGitBranch(invalid) = %q, want %q", branch, "unknown")
+	if branch != unknownBranch {
+		t.Errorf("getGitBranch(invalid) = %q, want %q", branch, unknownBranch)
 	}
 }
 
@@ -141,6 +141,109 @@ func TestGetGitDiffStats(t *testing.T) {
 	}
 	if ins != 1 {
 		t.Errorf("expected 1 insertion, got %d", ins)
+	}
+}
+
+func TestListBranches(t *testing.T) {
+	repoDir := initTestRepo(t)
+
+	// Create a second branch
+	cmd := exec.Command("git", "branch", "feature/my-thing")
+	cmd.Dir = repoDir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git branch failed: %s: %v", out, err)
+	}
+
+	// Set up a workspace service pointing at a temp grove dir
+	groveDir := t.TempDir()
+	projectDir := filepath.Join(groveDir, "test-ws")
+	if err := os.MkdirAll(projectDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	configData := `{"repoPath":"` + repoDir + `"}`
+	if err := os.WriteFile(filepath.Join(projectDir, "config.json"), []byte(configData), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := &WorkspaceService{groveDir: groveDir, runningCmds: make(map[string]*exec.Cmd)}
+	branches, err := svc.ListBranches("test-ws")
+	if err != nil {
+		t.Fatalf("ListBranches() error: %v", err)
+	}
+
+	// Should have at least main and feature/my-thing (local only, no remotes)
+	branchMap := make(map[string]BranchInfo)
+	for _, b := range branches {
+		branchMap[b.Name] = b
+	}
+
+	if _, ok := branchMap["main"]; !ok {
+		t.Error("expected 'main' branch in results")
+	}
+	if b, ok := branchMap["feature/my-thing"]; !ok {
+		t.Error("expected 'feature/my-thing' branch in results")
+	} else if b.IsRemote {
+		t.Error("expected 'feature/my-thing' to be local, got remote")
+	}
+
+	// All branches should be local (no remotes in a fresh repo)
+	for _, b := range branches {
+		if b.IsRemote {
+			t.Errorf("expected all branches to be local, got remote: %s", b.Name)
+		}
+	}
+}
+
+func TestListBranchesWithRemotes(t *testing.T) {
+	// Create a "remote" repo and clone it to get actual remote branches
+	remoteDir := initTestRepo(t)
+	cloneDir := t.TempDir()
+
+	cmd := exec.Command("git", "clone", remoteDir, cloneDir) // #nosec G204
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git clone failed: %s: %v", out, err)
+	}
+
+	groveDir := t.TempDir()
+	projectDir := filepath.Join(groveDir, "test-ws")
+	if err := os.MkdirAll(projectDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	configData := `{"repoPath":"` + cloneDir + `"}`
+	if err := os.WriteFile(filepath.Join(projectDir, "config.json"), []byte(configData), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := &WorkspaceService{groveDir: groveDir, runningCmds: make(map[string]*exec.Cmd)}
+	branches, err := svc.ListBranches("test-ws")
+	if err != nil {
+		t.Fatalf("ListBranches() error: %v", err)
+	}
+
+	hasLocal := false
+	hasRemote := false
+	for _, b := range branches {
+		if !b.IsRemote && b.Name == "main" {
+			hasLocal = true
+		}
+		if b.IsRemote && b.Name == "origin/main" {
+			hasRemote = true
+		}
+	}
+
+	if !hasLocal {
+		t.Error("expected local 'main' branch")
+	}
+	if !hasRemote {
+		t.Error("expected remote 'origin/main' branch")
+	}
+}
+
+func TestListBranchesInvalidWorkspace(t *testing.T) {
+	svc := &WorkspaceService{groveDir: t.TempDir(), runningCmds: make(map[string]*exec.Cmd)}
+	_, err := svc.ListBranches("nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent workspace")
 	}
 }
 

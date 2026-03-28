@@ -35,6 +35,9 @@ export enum TaskStep {
   SETUP_SCRIPT = "setup_script",
   ARCHIVE_SCRIPT = "archive_script",
   GIT_REMOVE = "git_remove",
+  REBASE = "rebase",
+  CHECKOUT = "checkout",
+  NEW_BRANCH = "new_branch",
 }
 
 export enum TaskStatus {
@@ -61,6 +64,11 @@ export type WorktreeLogEvent = {
   worktreeName: string;
   lines: string[];
   timestamp: number; // Unix milliseconds
+};
+
+export type BranchInfo = {
+  name: string;
+  isRemote: boolean;
 };
 
 export type WailsEvent<T = unknown> = {
