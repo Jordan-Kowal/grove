@@ -1,4 +1,11 @@
-import { EllipsisVertical } from "lucide-solid";
+import {
+  EllipsisVertical,
+  GitBranch,
+  GitBranchPlus,
+  GitMerge,
+  Play,
+  Trash2,
+} from "lucide-solid";
 import {
   type Component,
   createEffect,
@@ -17,6 +24,7 @@ type WorktreeCardProps = {
   worktree: WorktreeInfo;
   existingBranches: string[];
   baseBranch: string;
+  hasSetupScript: boolean;
   onOpenLogs: () => void;
 };
 
@@ -114,7 +122,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
             </button>
             <Show when={showMenu()}>
               <div class="absolute right-0 top-full z-50 mt-1">
-                <ul class="menu menu-xs bg-base-300 rounded-box shadow-lg w-40 p-1">
+                <ul class="menu menu-xs bg-base-300 rounded-box shadow-lg w-48 p-1">
                   <li>
                     <button
                       type="button"
@@ -124,6 +132,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                         openAction(Action.REBASE);
                       }}
                     >
+                      <GitMerge size={12} />
                       Rebase current branch
                     </button>
                   </li>
@@ -136,6 +145,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                         openAction(Action.CHECKOUT);
                       }}
                     >
+                      <GitBranch size={12} />
                       Checkout existing branch
                     </button>
                   </li>
@@ -148,9 +158,29 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                         openAction(Action.NEW_BRANCH);
                       }}
                     >
+                      <GitBranchPlus size={12} />
                       Move to new branch
                     </button>
                   </li>
+                  <Show when={props.hasSetupScript}>
+                    <li>
+                      <button
+                        type="button"
+                        class="text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowMenu(false);
+                          ctx.retrySetup(
+                            props.workspaceName,
+                            props.worktree.name,
+                          );
+                        }}
+                      >
+                        <Play size={12} />
+                        Rerun setup script
+                      </button>
+                    </li>
+                  </Show>
                   <li>
                     <button
                       type="button"
@@ -164,6 +194,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                         );
                       }}
                     >
+                      <Trash2 size={12} />
                       Remove worktree
                     </button>
                   </li>

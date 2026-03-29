@@ -372,19 +372,9 @@ func (s *WorkspaceService) NewBranchOnWorktree(workspaceName, worktreeName, bran
 			s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, strings.TrimSpace(string(out)))
 			return
 		}
+		// Remove inherited upstream tracking so the first push uses -u
+		_ = exec.Command("git", "-C", worktreePath, "branch", "--unset-upstream").Run() // #nosec G204
 		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusSuccess, "")
-
-		// Run setup script if configured (same as new worktree creation)
-		if config.SetupScript != "" {
-			s.emitTask(workspaceName, worktreeName, StepSetupScript, StatusInProgress, "")
-			s.refreshMonitor()
-			scriptErr := s.runScriptTracked(workspaceName, worktreeName, config.SetupScript, worktreePath)
-			if scriptErr != nil {
-				s.emitTask(workspaceName, worktreeName, StepSetupScript, StatusFailed, scriptErr.Error())
-			} else {
-				s.emitTask(workspaceName, worktreeName, StepSetupScript, StatusSuccess, "")
-			}
-		}
 		s.refreshMonitor()
 	}()
 }

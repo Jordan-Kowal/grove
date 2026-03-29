@@ -4,6 +4,7 @@ import {
   EllipsisVertical,
   ExternalLink,
   Plus,
+  Trash2,
 } from "lucide-solid";
 import {
   type Component,
@@ -95,7 +96,7 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
             </button>
             <Show when={showMenu()}>
               <div class="absolute right-0 top-full z-50 mt-1">
-                <ul class="menu menu-xs bg-base-300 rounded-box shadow-lg w-36 p-1">
+                <ul class="menu menu-xs bg-base-300 rounded-box shadow-lg w-44 p-1">
                   <li>
                     <button
                       type="button"
@@ -105,6 +106,7 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
                         setConfirmRemove(true);
                       }}
                     >
+                      <Trash2 size={12} />
                       Remove workspace
                     </button>
                   </li>
@@ -180,6 +182,7 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
                   worktree={wt}
                   baseBranch={baseBranch()}
                   existingBranches={existingBranches()}
+                  hasSetupScript={!!props.workspace.config.setupScript}
                   onOpenLogs={() => props.onOpenLogs(wt.name)}
                 />
               )}
