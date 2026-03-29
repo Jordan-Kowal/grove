@@ -7,6 +7,7 @@ import {
   Show,
 } from "solid-js";
 import { TaskStatus, TaskStep, type WorktreeTaskEvent } from "@/types/types";
+import { useDashboardContext } from "../contexts";
 import { ActionButton } from "./ActionButton";
 
 const STEP_LABELS: Record<TaskStep, string> = {
@@ -20,27 +21,37 @@ const STEP_LABELS: Record<TaskStep, string> = {
 };
 
 type TaskStatusBarProps = {
+  workspaceName: string;
+  worktreeName: string;
   taskEvent: WorktreeTaskEvent;
   startedAt?: number;
-  hasLogs: boolean;
   onOpenLogs: () => void;
-  onCancelTask: () => void;
-  onRetrySetup: () => void;
-  onRetryArchive: () => void;
-  onClearTaskStatus: () => void;
-  onForceRemove: () => void;
 };
 
 export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
+  const ctx = useDashboardContext();
   const [elapsed, setElapsed] = createSignal(0);
 
   const step = () => props.taskEvent.step;
   const status = () => props.taskEvent.status;
   const stepLabel = () => STEP_LABELS[step()];
+  const hasLogs = () =>
+    ctx.getScriptLogs(props.workspaceName, props.worktreeName).length > 0;
 
   const isInProgress = () => status() === TaskStatus.IN_PROGRESS;
   const isFailed = () => status() === TaskStatus.FAILED;
   const isSuccess = () => status() === TaskStatus.SUCCESS;
+
+  const cancelTask = () =>
+    ctx.cancelTask(props.workspaceName, props.worktreeName);
+  const retrySetup = () =>
+    ctx.retrySetup(props.workspaceName, props.worktreeName);
+  const retryArchive = () =>
+    ctx.retryArchive(props.workspaceName, props.worktreeName);
+  const clearTaskStatus = () =>
+    ctx.clearTaskStatus(props.workspaceName, props.worktreeName);
+  const forceRemove = () =>
+    ctx.forceRemoveWorktree(props.workspaceName, props.worktreeName);
 
   // Timestamp-based elapsed timer: immune to parent re-renders
   createEffect(() => {
@@ -53,7 +64,7 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
   });
 
   const LogsButton = () => (
-    <Show when={props.hasLogs}>
+    <Show when={hasLogs()}>
       <ActionButton
         tip="View logs"
         icon={<ScrollText size={10} />}
@@ -76,7 +87,7 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
           tip="Stop"
           icon={<Square size={10} />}
           opacity="opacity-50"
-          onClick={props.onCancelTask}
+          onClick={cancelTask}
         />
       </Show>
 
@@ -97,12 +108,12 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
         <ActionButton
           tip="Dismiss"
           icon={<X size={10} />}
-          onClick={props.onClearTaskStatus}
+          onClick={clearTaskStatus}
         />
         <ActionButton
           tip="Retry"
           icon={<RefreshCw size={10} />}
-          onClick={props.onRetrySetup}
+          onClick={retrySetup}
         />
       </Show>
 
@@ -114,17 +125,17 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
         <ActionButton
           tip="Dismiss"
           icon={<X size={10} />}
-          onClick={props.onClearTaskStatus}
+          onClick={clearTaskStatus}
         />
         <ActionButton
           tip="Force delete"
           icon={<Trash2 size={10} />}
-          onClick={props.onForceRemove}
+          onClick={forceRemove}
         />
         <ActionButton
           tip="Retry"
           icon={<RefreshCw size={10} />}
-          onClick={props.onRetryArchive}
+          onClick={retryArchive}
         />
       </Show>
 
@@ -136,8 +147,8 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
           tip="Dismiss"
           icon={<X size={10} />}
           onClick={() => {
-            props.onClearTaskStatus();
-            props.onForceRemove();
+            clearTaskStatus();
+            forceRemove();
           }}
         />
       </Show>
@@ -157,7 +168,7 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
         <ActionButton
           tip="Dismiss"
           icon={<X size={10} />}
-          onClick={props.onClearTaskStatus}
+          onClick={clearTaskStatus}
         />
       </Show>
     </div>

@@ -60,32 +60,7 @@ export const Dashboard: Component<DashboardProps> = (props) => {
             {(ws) => (
               <WorkspaceSection
                 workspace={ws}
-                taskStatuses={ctx.taskStatuses()}
-                taskStartedAt={ctx.taskStartedAt()}
-                pendingDeletes={ctx.pendingDeletes()}
-                onCreateWorktree={(n) => ctx.createWorktree(ws.name, n)}
-                onRemoveWorktree={(n) => ctx.removeWorktree(ws.name, n)}
-                onConfirmDelete={(n) => ctx.confirmDelete(ws.name, n)}
-                onCancelDelete={(n) => ctx.cancelDelete(ws.name, n)}
-                onForceRemoveWorktree={(n) =>
-                  ctx.forceRemoveWorktree(ws.name, n)
-                }
-                onRemoveWorkspace={() => ctx.removeWorkspace(ws.name)}
-                onOpenWorkspace={() => ctx.focusEditor(ws.config.repoPath)}
-                onClickWorktree={ctx.focusEditor}
-                onCancelTask={(n) => ctx.cancelTask(ws.name, n)}
-                onRetrySetup={(n) => ctx.retrySetup(ws.name, n)}
-                onRetryArchive={(n) => ctx.retryArchive(ws.name, n)}
-                onClearTaskStatus={(n) => ctx.clearTaskStatus(ws.name, n)}
                 onOpenLogs={(n) => props.onOpenLogs(`${ws.name}/${n}`)}
-                hasLogs={(n) => ctx.getScriptLogs(ws.name, n).length > 0}
-                onRebase={(n, branch) => ctx.rebaseWorktree(ws.name, n, branch)}
-                onCheckout={(n, branch) =>
-                  ctx.checkoutBranch(ws.name, n, branch)
-                }
-                onNewBranch={(n, branchName) =>
-                  ctx.newBranchOnWorktree(ws.name, n, branchName)
-                }
               />
             )}
           </For>

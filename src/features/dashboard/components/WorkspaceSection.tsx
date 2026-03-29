@@ -14,38 +14,23 @@ import {
   Show,
 } from "solid-js";
 import { BranchNameInput } from "@/components/ui";
-import type { Workspace, WorktreeTaskEvent } from "@/types/types";
+import type { Workspace } from "@/types/types";
+import { useDashboardContext } from "../contexts";
 import { WorktreeCard } from "./WorktreeCard";
 
 type WorkspaceSectionProps = {
   workspace: Workspace;
-  taskStatuses: Record<string, WorktreeTaskEvent>;
-  taskStartedAt: Record<string, number>;
-  pendingDeletes: Record<string, boolean>;
-  onCreateWorktree: (name: string) => void;
-  onRemoveWorktree: (name: string) => void;
-  onConfirmDelete: (name: string) => void;
-  onCancelDelete: (name: string) => void;
-  onForceRemoveWorktree: (name: string) => void;
-  onRemoveWorkspace: () => void;
-  onOpenWorkspace: () => void;
-  onClickWorktree: (path: string) => void;
-  onCancelTask: (worktreeName: string) => void;
-  onRetrySetup: (worktreeName: string) => void;
-  onRetryArchive: (worktreeName: string) => void;
-  onClearTaskStatus: (worktreeName: string) => void;
   onOpenLogs: (worktreeName: string) => void;
-  hasLogs: (worktreeName: string) => boolean;
-  onRebase: (worktreeName: string, targetBranch: string) => void;
-  onCheckout: (worktreeName: string, branch: string) => void;
-  onNewBranch: (worktreeName: string, branchName: string) => void;
 };
 
 export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
+  const ctx = useDashboardContext();
   const [collapsed, setCollapsed] = createSignal(false);
   const [showMenu, setShowMenu] = createSignal(false);
   const [showAddInput, setShowAddInput] = createSignal(false);
   const [confirmRemove, setConfirmRemove] = createSignal(false);
+
+  const name = () => props.workspace.name;
 
   // Close menu on outside click
   createEffect(() => {
@@ -63,21 +48,6 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
 
   const baseBranch = () => props.workspace.config.baseBranch || "origin/main";
 
-  const getTaskStatus = (worktreeName: string) => {
-    const key = `${props.workspace.name}/${worktreeName}`;
-    return props.taskStatuses[key];
-  };
-
-  const getTaskStartedAt = (worktreeName: string) => {
-    const key = `${props.workspace.name}/${worktreeName}`;
-    return props.taskStartedAt[key];
-  };
-
-  const isDeletePending = (worktreeName: string) => {
-    const key = `${props.workspace.name}/${worktreeName}`;
-    return props.pendingDeletes[key] ?? false;
-  };
-
   return (
     <div class="mb-1">
       {/* Section header */}
@@ -94,14 +64,14 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
             <ChevronRight size={10} class="opacity-40 shrink-0" />
           </Show>
           <span class="text-[10px] font-semibold uppercase tracking-wider opacity-50">
-            {props.workspace.name}
+            {name()}
           </span>
         </button>
         <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             type="button"
             class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0"
-            onClick={props.onOpenWorkspace}
+            onClick={() => ctx.focusEditor(props.workspace.config.repoPath)}
             title="Open in editor"
           >
             <ExternalLink size={12} />
@@ -154,7 +124,7 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
             class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] text-error opacity-70 hover:opacity-100"
             onClick={() => {
               setConfirmRemove(false);
-              props.onRemoveWorkspace();
+              ctx.removeWorkspace(name());
             }}
           >
             Yes
@@ -176,8 +146,8 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
             <BranchNameInput
               placeholder="Worktree name..."
               forbiddenNames={worktreeNames()}
-              onSubmit={(name) => {
-                props.onCreateWorktree(name);
+              onSubmit={(wtName) => {
+                ctx.createWorktree(name(), wtName);
                 setShowAddInput(false);
               }}
               onCancel={() => setShowAddInput(false)}
@@ -206,27 +176,11 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
             <For each={props.workspace.worktrees ?? []}>
               {(wt) => (
                 <WorktreeCard
+                  workspaceName={name()}
                   worktree={wt}
-                  workspaceName={props.workspace.name}
                   baseBranch={baseBranch()}
                   existingBranches={existingBranches()}
-                  deletePending={isDeletePending(wt.name)}
-                  hasLogs={props.hasLogs(wt.name)}
-                  taskEvent={getTaskStatus(wt.name)}
-                  taskStartedAt={getTaskStartedAt(wt.name)}
-                  onClick={() => props.onClickWorktree(wt.path)}
-                  onRemove={() => props.onRemoveWorktree(wt.name)}
-                  onConfirmDelete={() => props.onConfirmDelete(wt.name)}
-                  onCancelDelete={() => props.onCancelDelete(wt.name)}
-                  onForceRemove={() => props.onForceRemoveWorktree(wt.name)}
-                  onCancelTask={() => props.onCancelTask(wt.name)}
-                  onRetrySetup={() => props.onRetrySetup(wt.name)}
-                  onRetryArchive={() => props.onRetryArchive(wt.name)}
-                  onClearTaskStatus={() => props.onClearTaskStatus(wt.name)}
                   onOpenLogs={() => props.onOpenLogs(wt.name)}
-                  onRebase={(branch) => props.onRebase(wt.name, branch)}
-                  onCheckout={(branch) => props.onCheckout(wt.name, branch)}
-                  onNewBranch={(name) => props.onNewBranch(wt.name, name)}
                 />
               )}
             </For>

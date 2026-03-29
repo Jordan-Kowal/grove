@@ -6,57 +6,29 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { BranchNameInput, BranchSelect, StatusBadge } from "@/components/ui";
-import {
-  TaskStatus,
-  TaskStep,
-  type WorktreeInfo,
-  type WorktreeTaskEvent,
-} from "@/types/types";
+import { StatusBadge } from "@/components/ui";
+import { TaskStatus, TaskStep, type WorktreeInfo } from "@/types/types";
+import { useDashboardContext } from "../contexts";
+import { Action, QuickActionPanel } from "./QuickActionPanel";
 import { TaskStatusBar } from "./TaskStatusBar";
 
-enum Action {
-  REBASE = "rebase",
-  CHECKOUT = "checkout",
-  NEW_BRANCH = "newBranch",
-}
-
-const ACTION_LABELS: Record<Action, string> = {
-  [Action.REBASE]: "Rebase on branch",
-  [Action.CHECKOUT]: "Checkout branch",
-  [Action.NEW_BRANCH]: "New branch",
-};
-
 type WorktreeCardProps = {
-  worktree: WorktreeInfo;
   workspaceName: string;
-  baseBranch: string;
+  worktree: WorktreeInfo;
   existingBranches: string[];
-  deletePending: boolean;
-  hasLogs: boolean;
-  taskEvent?: WorktreeTaskEvent;
-  taskStartedAt?: number;
-  onClick: () => void;
-  onRemove: () => void;
-  onConfirmDelete: () => void;
-  onCancelDelete: () => void;
-  onForceRemove: () => void;
-  onCancelTask: () => void;
-  onRetrySetup: () => void;
-  onRetryArchive: () => void;
-  onClearTaskStatus: () => void;
+  baseBranch: string;
   onOpenLogs: () => void;
-  onRebase: (targetBranch: string) => void;
-  onCheckout: (branch: string) => void;
-  onNewBranch: (branchName: string) => void;
 };
 
 export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
+  const ctx = useDashboardContext();
   const [showMenu, setShowMenu] = createSignal(false);
   const [activeAction, setActiveAction] = createSignal<Action | null>(null);
-  const [selectedBranch, setSelectedBranch] = createSignal("");
 
-  const task = () => props.taskEvent;
+  const key = () => `${props.workspaceName}/${props.worktree.name}`;
+  const task = () => ctx.taskStatuses()[key()];
+  const startedAt = () => ctx.taskStartedAt()[key()];
+  const deletePending = () => ctx.pendingDeletes()[key()] ?? false;
   const step = () => task()?.step;
   const status = () => task()?.status;
   const hasDiff = () => props.worktree.filesChanged > 0;
@@ -64,9 +36,8 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
   const isInProgress = () => status() === TaskStatus.IN_PROGRESS;
   const isFailed = () => status() === TaskStatus.FAILED;
 
-  // Card is non-actionable during git worktree creation, removal, delete confirmation, or active action
   const isCardDisabled = () =>
-    props.deletePending ||
+    deletePending() ||
     activeAction() !== null ||
     ((step() === TaskStep.GIT_WORKTREE ||
       step() === TaskStep.GIT_REMOVE ||
@@ -75,9 +46,8 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
       step() === TaskStep.NEW_BRANCH) &&
       isInProgress());
 
-  // Show menu when idle, or during setup/archive (card is actionable)
   const showMenuAllowed = () =>
-    !props.deletePending &&
+    !deletePending() &&
     !activeAction() &&
     (!task() || isFailed() || step() !== TaskStep.GIT_WORKTREE);
 
@@ -91,30 +61,12 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
 
   const handleClick = () => {
     if (isCardDisabled()) return;
-    props.onClick();
+    ctx.focusEditor(props.worktree.path);
   };
 
   const openAction = (action: Action) => {
     setShowMenu(false);
-    setSelectedBranch(
-      action === Action.REBASE ? props.baseBranch || "origin/main" : "",
-    );
     setActiveAction(action);
-  };
-
-  const cancelAction = () => {
-    setActiveAction(null);
-    setSelectedBranch("");
-  };
-
-  // Only handles rebase/checkout — newBranch submits via BranchNameInput.onSubmit directly
-  const confirmAction = () => {
-    const action = activeAction();
-    const branch = selectedBranch();
-    setActiveAction(null);
-    setSelectedBranch("");
-    if (action === Action.REBASE && branch) props.onRebase(branch);
-    if (action === Action.CHECKOUT && branch) props.onCheckout(branch);
   };
 
   return (
@@ -172,7 +124,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                         openAction(Action.REBASE);
                       }}
                     >
-                      Rebase on branch...
+                      Rebase current branch
                     </button>
                   </li>
                   <li>
@@ -184,7 +136,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                         openAction(Action.CHECKOUT);
                       }}
                     >
-                      Checkout branch...
+                      Checkout existing branch
                     </button>
                   </li>
                   <li>
@@ -196,7 +148,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                         openAction(Action.NEW_BRANCH);
                       }}
                     >
-                      New branch...
+                      Move to new branch
                     </button>
                   </li>
                   <li>
@@ -206,7 +158,10 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowMenu(false);
-                        props.onRemove();
+                        ctx.removeWorktree(
+                          props.workspaceName,
+                          props.worktree.name,
+                        );
                       }}
                     >
                       Remove worktree
@@ -220,7 +175,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
       </div>
 
       {/* Delete confirmation */}
-      <Show when={props.deletePending}>
+      <Show when={deletePending()}>
         <div class="flex flex-col gap-0.5 pl-4.5 mt-0.5">
           <div class="flex items-center gap-1">
             <span class="text-[10px] text-warning flex-1">Delete?</span>
@@ -229,7 +184,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
               class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] text-error opacity-70 hover:opacity-100"
               onClick={(e) => {
                 e.stopPropagation();
-                props.onConfirmDelete();
+                ctx.confirmDelete(props.workspaceName, props.worktree.name);
               }}
             >
               Yes
@@ -239,7 +194,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
               class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] opacity-50 hover:opacity-100"
               onClick={(e) => {
                 e.stopPropagation();
-                props.onCancelDelete();
+                ctx.cancelDelete(props.workspaceName, props.worktree.name);
               }}
             >
               No
@@ -248,75 +203,26 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
         </div>
       </Show>
 
-      {/* Action panel (rebase / checkout / new branch) */}
+      {/* Quick action panel */}
       <Show when={activeAction()}>
-        <div class="pl-4.5 mt-0.5 space-y-1">
-          <span class="text-[10px] opacity-60">
-            {ACTION_LABELS[activeAction()!]}
-          </span>
-          <Show
-            when={
-              activeAction() === Action.REBASE ||
-              activeAction() === Action.CHECKOUT
-            }
-          >
-            <BranchSelect
-              workspaceName={props.workspaceName}
-              value={selectedBranch()}
-              onSelect={setSelectedBranch}
-            />
-          </Show>
-          <Show when={activeAction() === Action.NEW_BRANCH}>
-            <BranchNameInput
-              placeholder="Branch name..."
-              forbiddenNames={props.existingBranches}
-              onSubmit={(name) => {
-                setActiveAction(null);
-                props.onNewBranch(name);
-              }}
-              onCancel={cancelAction}
-            />
-          </Show>
-          <Show when={activeAction() !== "newBranch"}>
-            <div class="flex justify-end gap-1">
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] opacity-50 hover:opacity-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  cancelAction();
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] text-info opacity-70 hover:opacity-100"
-                disabled={!selectedBranch()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  confirmAction();
-                }}
-              >
-                OK
-              </button>
-            </div>
-          </Show>
-        </div>
+        <QuickActionPanel
+          workspaceName={props.workspaceName}
+          worktreeName={props.worktree.name}
+          baseBranch={props.baseBranch}
+          existingBranches={props.existingBranches}
+          action={activeAction()!}
+          onDone={() => setActiveAction(null)}
+        />
       </Show>
 
       {/* Task status bar */}
-      <Show when={task() && !props.deletePending && !activeAction()}>
+      <Show when={task() && !deletePending() && !activeAction()}>
         <TaskStatusBar
+          workspaceName={props.workspaceName}
+          worktreeName={props.worktree.name}
           taskEvent={task()!}
-          startedAt={props.taskStartedAt}
-          hasLogs={props.hasLogs}
+          startedAt={startedAt()}
           onOpenLogs={props.onOpenLogs}
-          onCancelTask={props.onCancelTask}
-          onRetrySetup={props.onRetrySetup}
-          onRetryArchive={props.onRetryArchive}
-          onClearTaskStatus={props.onClearTaskStatus}
-          onForceRemove={props.onForceRemove}
         />
       </Show>
     </div>
