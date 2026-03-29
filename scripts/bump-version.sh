@@ -55,9 +55,6 @@ echo ""
 cd "$ROOT"
 git add package.json CHANGELOG.md build/config.yml main.go build/darwin/Info.plist build/darwin/Info.dev.plist
 git commit -m "chore: bump version to ${NEW_VERSION}"
-git tag "$NEW_VERSION"
-git push
-git push origin "$NEW_VERSION"
 
 echo ""
-echo "Done! Version bumped to ${NEW_VERSION}, tagged, and pushed."
+echo "Done! Version bumped to ${NEW_VERSION} and committed"
