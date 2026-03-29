@@ -38,6 +38,18 @@
 
 **Grove** is a macOS desktop app that sits alongside your editor as a narrow sidebar. It manages git worktrees per workspace with custom setup/teardown scripts, opens them in your IDE in one click, and monitors any Claude Code sessions running in those directories — surfacing their status on the dashboard with sound/badge notifications.
 
+<div align="center">
+  <img src="docs/auto-dimension.png" alt="Grove docked alongside editor" width="800" />
+  <br /><br />
+  <img src="docs/claude-monitoring.png" alt="Claude session monitoring" width="240" />
+  &nbsp;&nbsp;
+  <img src="docs/diff-and-branches.png" alt="Git diffs and branch actions" width="240" />
+  <br /><br />
+  <img src="docs/settings-general.png" alt="General settings" width="340" />
+  &nbsp;&nbsp;
+  <img src="docs/settings-repo.png" alt="Workspace settings" width="340" />
+</div>
+
 ## ✨ Features
 
 - **Worktree management**: Create and remove worktrees per workspace, with git diff stats, custom setup and teardown scripts, live logs, and quick actions (rebase on branch, checkout branch, start fresh from new branch)

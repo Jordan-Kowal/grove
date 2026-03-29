@@ -1,11 +1,5 @@
 # TODO
 
-## 0.1.0
-
-- [ ] Update readme with screenshots
-
-## Later
-
 - [ ] Allow seeing the multiple existing claude session in the card
 - [ ] Better handling of issues in settings/workspaces
 - [ ] Auto-update: add checksum/signature verification to `curl | bash` update mechanism (`app_service.go`)

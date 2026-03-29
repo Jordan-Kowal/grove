@@ -42,4 +42,4 @@ build/darwin/Assets.car
 # macOS
 **/.DS_Store
 
-docs/**
+docs/superpowers/
