@@ -6,7 +6,7 @@ import {
   Match,
   Switch,
 } from "solid-js";
-import { SettingsProvider } from "./contexts";
+import { SettingsProvider, VersionProvider } from "./contexts";
 import { Dashboard, ErrorLog } from "./features/dashboard";
 import { DashboardProvider } from "./features/dashboard/contexts";
 import { Settings } from "./features/settings";
@@ -68,16 +68,18 @@ const App: Component = () => {
   return (
     <main class="min-h-screen bg-base-100 text-base-content">
       <SettingsProvider>
-        <ErrorBoundary
-          fallback={(error) => (
-            <div class="p-4 text-error">
-              <p>Something went wrong:</p>
-              <pre class="text-sm">{error.message}</pre>
-            </div>
-          )}
-        >
-          <AppContent />
-        </ErrorBoundary>
+        <VersionProvider>
+          <ErrorBoundary
+            fallback={(error) => (
+              <div class="p-4 text-error">
+                <p>Something went wrong:</p>
+                <pre class="text-sm">{error.message}</pre>
+              </div>
+            )}
+          >
+            <AppContent />
+          </ErrorBoundary>
+        </VersionProvider>
       </SettingsProvider>
     </main>
   );

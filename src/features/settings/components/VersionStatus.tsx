@@ -1,27 +1,12 @@
 import { AppService } from "@backend";
 import { AlertCircle, Check, Download } from "lucide-solid";
-import { type Component, createSignal, Match, onMount, Switch } from "solid-js";
-import { getCurrentVersion, getLatestVersion } from "@/utils/versionCheck";
+import { type Component, Match, Switch } from "solid-js";
+import { useVersionContext } from "@/contexts";
+import { getCurrentVersion } from "@/utils/versionCheck";
 
 export const VersionStatus: Component = () => {
-  const [latestVersion, setLatestVersion] = createSignal<string | null>(null);
-  const [checkFailed, setCheckFailed] = createSignal(false);
-  const [checked, setChecked] = createSignal(false);
-
-  const isUpdateAvailable = () => {
-    const latest = latestVersion();
-    return latest !== null && latest !== getCurrentVersion();
-  };
-
-  onMount(async () => {
-    const latest = await getLatestVersion();
-    if (latest === null) {
-      setCheckFailed(true);
-    } else {
-      setLatestVersion(latest);
-    }
-    setChecked(true);
-  });
+  const { latestVersion, checkFailed, checked, isUpdateAvailable } =
+    useVersionContext();
 
   return (
     <Switch>

@@ -1,6 +1,6 @@
 import { Plus, Settings } from "lucide-solid";
 import { type Component, For, Show } from "solid-js";
-import { WorkspaceSection } from "./components";
+import { UpdateSnackbar, WorkspaceSection } from "./components";
 import { useDashboardContext } from "./contexts";
 
 type DashboardProps = {
@@ -13,6 +13,7 @@ export const Dashboard: Component<DashboardProps> = (props) => {
 
   return (
     <div class="flex flex-col h-screen">
+      <UpdateSnackbar />
       {/* Title bar */}
       <div class="drag-region flex items-center justify-between pl-18 pr-2 h-10 shrink-0 border-b border-base-300">
         <span class="text-[10px] font-semibold uppercase tracking-wider opacity-40 no-drag">
