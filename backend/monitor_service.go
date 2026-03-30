@@ -296,16 +296,26 @@ type groveSession struct {
 func (s *MonitorService) refreshClaude() {
 	sessions := s.readGroveSessions()
 
-	// Build map: worktree path → highest priority status
+	// Collect all known worktree paths for subdirectory matching.
+	var worktreePaths []string
+	for _, ws := range s.workspaces {
+		for _, wt := range ws.Worktrees {
+			worktreePaths = append(worktreePaths, wt.Path)
+		}
+	}
+
+	// Build map: worktree path → highest priority status.
+	// A session whose cwd is a subdirectory of a worktree is attributed to that worktree.
 	statusByPath := make(map[string]ClaudeStatus)
 	for _, sess := range sessions {
+		resolvedPath := resolveWorktreePath(sess.CWD, worktreePaths)
 		newStatus := groveStateToClaudeStatus(sess.State)
-		if existing, ok := statusByPath[sess.CWD]; ok {
+		if existing, ok := statusByPath[resolvedPath]; ok {
 			if claudeStatusPriority(newStatus) > claudeStatusPriority(existing) {
-				statusByPath[sess.CWD] = newStatus
+				statusByPath[resolvedPath] = newStatus
 			}
 		} else {
-			statusByPath[sess.CWD] = newStatus
+			statusByPath[resolvedPath] = newStatus
 		}
 	}
 
@@ -452,6 +462,17 @@ func (s *MonitorService) readGroveSessions() []groveSession {
 		sessions = append(sessions, sess)
 	}
 	return sessions
+}
+
+// resolveWorktreePath returns the matching worktree path if cwd is equal to
+// or a subdirectory of a known worktree. Falls back to cwd itself.
+func resolveWorktreePath(cwd string, worktreePaths []string) string {
+	for _, wtPath := range worktreePaths {
+		if cwd == wtPath || strings.HasPrefix(cwd, wtPath+string(filepath.Separator)) {
+			return wtPath
+		}
+	}
+	return cwd
 }
 
 func groveStateToClaudeStatus(state string) ClaudeStatus {
