@@ -41,6 +41,7 @@ export type DashboardContextProps = {
   ) => void;
   focusEditor: (worktreePath: string) => void;
   updateWorkspaceConfig: (name: string, config: WorkspaceConfig) => void;
+  syncMainCheckout: (workspaceName: string) => void;
 };
 
 export const DashboardContext = createContext<DashboardContextProps>();

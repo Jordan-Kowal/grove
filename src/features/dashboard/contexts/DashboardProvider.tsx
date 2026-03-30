@@ -371,6 +371,14 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     }
   };
 
+  const syncMainCheckout = async (workspaceName: string) => {
+    try {
+      await WorkspaceService.SyncMainCheckout(workspaceName);
+    } catch (e) {
+      console.error("[grove] syncMainCheckout failed:", e);
+    }
+  };
+
   const contextValue: DashboardContextProps = {
     workspaces,
     taskStatuses,
@@ -394,6 +402,7 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     newBranchOnWorktree,
     focusEditor,
     updateWorkspaceConfig,
+    syncMainCheckout,
   };
 
   return (

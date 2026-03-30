@@ -59,6 +59,80 @@ func TestValidateName(t *testing.T) {
 	}
 }
 
+func TestValidateBranchName(t *testing.T) {
+	valid := []string{
+		"my-branch",
+		"feature/my-branch",
+		"feature/sub/deep",
+		"a",
+		"abc-def_ghi",
+		"123",
+		"origin/main",
+	}
+	for _, name := range valid {
+		t.Run("valid/"+name, func(t *testing.T) {
+			if err := validateBranchName(name); err != nil {
+				t.Errorf("validateBranchName(%q) = %v, want nil", name, err)
+			}
+		})
+	}
+
+	invalid := []struct {
+		name    string
+		wantMsg string
+	}{
+		{"", "cannot be empty"},
+		{".", "invalid branch name"},
+		{"..", "invalid branch name"},
+		{"has space", "invalid characters"},
+		{"has..dots", "'..'"},
+		{"double//slash", "consecutive slashes"},
+		{"/leading-slash", "invalid characters"},
+		{"trailing-slash/", "invalid characters"},
+		{"café", "invalid characters"},
+	}
+	for _, tt := range invalid {
+		label := tt.name
+		if label == "" {
+			label = "(empty)"
+		}
+		t.Run("invalid/"+label, func(t *testing.T) {
+			err := validateBranchName(tt.name)
+			if err == nil {
+				t.Fatalf("validateBranchName(%q) = nil, want error containing %q", tt.name, tt.wantMsg)
+			}
+			if !strings.Contains(err.Error(), tt.wantMsg) {
+				t.Errorf("validateBranchName(%q) = %q, want error containing %q", tt.name, err.Error(), tt.wantMsg)
+			}
+		})
+	}
+}
+
+func TestFetchRemoteIfNeeded(t *testing.T) {
+	// Create a "remote" repo and clone it
+	remoteDir := initTestRepo(t)
+	cloneDir := t.TempDir()
+	cmd := exec.Command("git", "clone", remoteDir, cloneDir) // #nosec G204
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git clone failed: %s: %v", out, err)
+	}
+
+	// Local branch — should not error and not fetch
+	if err := fetchRemoteIfNeeded(cloneDir, "main"); err != nil {
+		t.Errorf("local branch: unexpected error: %v", err)
+	}
+
+	// Remote ref — should fetch successfully
+	if err := fetchRemoteIfNeeded(cloneDir, "origin/main"); err != nil {
+		t.Errorf("remote ref: unexpected error: %v", err)
+	}
+
+	// Unknown remote — should be a no-op
+	if err := fetchRemoteIfNeeded(cloneDir, "nonexistent/branch"); err != nil {
+		t.Errorf("unknown remote: unexpected error: %v", err)
+	}
+}
+
 // TestMain clears git env vars that leak from pre-commit hooks, preventing
 // test git commands from accidentally operating on the real repo.
 func TestMain(m *testing.M) {
