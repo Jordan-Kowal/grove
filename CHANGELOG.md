@@ -10,6 +10,9 @@
 
 ## TBD
 
+- ✨ Add link to macOS Accessibility settings near "Dock to edge" toggle — helps re-grant permission after updates
+- ✨ Update dialog now warns about re-granting Accessibility permission
+- 🐞 Install script resets stale TCC permissions on update so macOS re-prompts for Automation
 - 🐞 Fix scripts missing CLI tools (`go`, `task`) when launched from Finder — PATH resolution now uses interactive shell mode
 
 ## 0.1.1 - 2026-03-30

@@ -52,6 +52,15 @@ if mv /tmp/grove-install/*.app /Applications/; then
     echo "Removing old version..."
     rm -rf "$BACKUP_PATH"
   fi
+  # Reset TCC permissions so macOS re-prompts on next launch.
+  # Ad-hoc signed builds get a new identity each time, silently invalidating old grants.
+  # AppleEvents: macOS will re-prompt automatically on first use.
+  # Accessibility: macOS won't re-prompt, but the app detects this and shows a link to System Settings.
+  if [ -n "$BACKUP_PATH" ]; then
+    echo "Resetting permissions (you will be re-prompted on next launch)..."
+    tccutil reset Accessibility app.jkdev.grove 2>/dev/null || true
+    tccutil reset AppleEvents app.jkdev.grove 2>/dev/null || true
+  fi
   echo "Grove has been successfully installed!"
 else
   # Installation failed, restore backup

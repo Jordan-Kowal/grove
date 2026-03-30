@@ -35,7 +35,7 @@ func (s *AppService) InstallUpdate(version string) {
 	dialog := app.Dialog.Question().
 		SetTitle("Update Available").
 		SetMessage(fmt.Sprintf(
-			"A new version (%s) is available.\n\nThe app will close, update, and reopen automatically.\n\nDo you want to proceed?",
+			"A new version (%s) is available.\n\nThe app will close, update, and reopen automatically.\n\nNote: You may need to re-grant Accessibility permission in System Settings after updating.\n\nDo you want to proceed?",
 			version,
 		))
 

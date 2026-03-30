@@ -59,6 +59,7 @@ declare module "@backend" {
     SnapNow(): Promise<void>;
     GetSnapSide(): Promise<string>;
     GetEditorBounds(): Promise<EditorBounds>;
+    OpenAccessibilitySettings(): Promise<void>;
   };
 
   export const TrayService: {

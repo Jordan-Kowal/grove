@@ -65,6 +65,12 @@ func (s *SnapService) GetSnapSide() string {
 	return s.snapSide
 }
 
+// OpenAccessibilitySettings opens System Settings to the Accessibility privacy pane.
+func (s *SnapService) OpenAccessibilitySettings() {
+	cmd := exec.Command("open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+	_ = cmd.Run()
+}
+
 // getGroveWindowPosition returns the current position and size of the Grove window via AppleScript.
 // Returns x, y, w, h or an error.
 func getGroveWindowPosition() (int, int, int, int, error) { //nolint:unparam // height may be used later
