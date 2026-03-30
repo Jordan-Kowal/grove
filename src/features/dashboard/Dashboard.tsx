@@ -42,7 +42,7 @@ export const Dashboard: Component<DashboardProps> = (props) => {
       {/* Workspace sections */}
       <div class="flex-1 overflow-y-auto py-1">
         <Show
-          when={ctx.workspaces().length > 0}
+          when={ctx.workspaces.length > 0}
           fallback={
             <div class="flex flex-col items-center justify-center h-full gap-2 px-4">
               <p class="text-xs opacity-30 text-center">No workspaces</p>
@@ -57,7 +57,7 @@ export const Dashboard: Component<DashboardProps> = (props) => {
             </div>
           }
         >
-          <For each={ctx.workspaces()}>
+          <For each={ctx.workspaces}>
             {(ws) => (
               <WorkspaceSection
                 workspace={ws}
