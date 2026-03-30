@@ -8,7 +8,7 @@
 - 🔧 Others
 - 💥 Breaking
 
-## TBD
+## 0.1.1 - 2026-03-30
 
 - 🚀 Added "Sync main checkout" action in workspace menu — resets the main working tree to match HEAD (with confirmation)
 - 🐞 Fix PATH resolution for scripts run from Grove — use the user's login shell instead of `/bin/sh`
