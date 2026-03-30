@@ -7,7 +7,7 @@ import type {
 } from "@/types/types";
 
 export type DashboardContextProps = {
-  workspaces: () => Workspace[];
+  workspaces: Workspace[];
   taskStatuses: () => Record<string, WorktreeTaskEvent>;
   taskStartedAt: () => Record<string, number>;
   pendingDeletes: () => Record<string, boolean>;

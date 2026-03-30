@@ -12,6 +12,7 @@ import {
   onMount,
   useContext,
 } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import { useSettingsContext } from "@/contexts";
 import {
   ClaudeStatus,
@@ -44,7 +45,7 @@ export type DashboardProviderProps = {
 
 export const DashboardProvider = (props: DashboardProviderProps) => {
   const { settings } = useSettingsContext();
-  const [workspaces, setWorkspaces] = createSignal<Workspace[]>([]);
+  const [workspaces, setWorkspaces] = createStore<Workspace[]>([]);
   const [taskStatuses, setTaskStatuses] = createSignal<
     Record<string, WorktreeTaskEvent>
   >({});
@@ -59,7 +60,7 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
   // Merge real workspace data with optimistic worktrees (path="" placeholders).
   // Preserves placeholders until real data includes a worktree with the same name.
   const mergeWorkspaces = (real: Workspace[]) => {
-    const prev = workspaces();
+    const prev = workspaces;
     return real.map((ws) => {
       const prevWs = prev.find((p) => p.name === ws.name);
       if (!prevWs) return ws;
@@ -74,12 +75,12 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
 
   onMount(() => {
     MonitorService.GetWorkspaces()
-      .then((ws) => setWorkspaces(ws))
+      .then((ws) => setWorkspaces(reconcile(ws, { key: "name" })))
       .catch((e) => console.error("[grove] initial GetWorkspaces failed:", e));
     const unsubWorkspaces = Events.On(
       "workspaces-updated",
       (event: WailsEvent<Workspace[]>) => {
-        setWorkspaces(mergeWorkspaces(event.data));
+        setWorkspaces(reconcile(mergeWorkspaces(event.data), { key: "name" }));
       },
     );
     const unsubTask = Events.On(
@@ -173,25 +174,28 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
 
   const createWorktree = (workspaceName: string, worktreeName: string) => {
     // Optimistically add placeholder card (path="" signals it's a placeholder)
-    setWorkspaces((prev) =>
-      prev.map((ws) => {
-        if (ws.name !== workspaceName) return ws;
-        return {
-          ...ws,
-          worktrees: [
-            ...(ws.worktrees ?? []),
-            {
-              name: worktreeName,
-              path: "",
-              branch: "",
-              filesChanged: 0,
-              insertions: 0,
-              deletions: 0,
-              claudeStatus: ClaudeStatus.IDLE,
-            },
-          ],
-        };
-      }),
+    setWorkspaces(
+      reconcile(
+        workspaces.map((ws) => {
+          if (ws.name !== workspaceName) return ws;
+          return {
+            ...ws,
+            worktrees: [
+              ...(ws.worktrees ?? []),
+              {
+                name: worktreeName,
+                path: "",
+                branch: "",
+                filesChanged: 0,
+                insertions: 0,
+                deletions: 0,
+                claudeStatus: ClaudeStatus.IDLE,
+              },
+            ],
+          };
+        }),
+        { key: "name" },
+      ),
     );
     WorkspaceService.CreateWorktree(workspaceName, worktreeName).catch((e) =>
       console.error("[grove] createWorktree failed:", e),
@@ -230,16 +234,19 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
 
   const forceRemoveWorktree = (workspaceName: string, worktreeName: string) => {
     // Remove optimistic placeholder immediately
-    setWorkspaces((prev) =>
-      prev.map((ws) => {
-        if (ws.name !== workspaceName) return ws;
-        return {
-          ...ws,
-          worktrees: (ws.worktrees ?? []).filter(
-            (wt) => wt.name !== worktreeName,
-          ),
-        };
-      }),
+    setWorkspaces(
+      reconcile(
+        workspaces.map((ws) => {
+          if (ws.name !== workspaceName) return ws;
+          return {
+            ...ws,
+            worktrees: (ws.worktrees ?? []).filter(
+              (wt) => wt.name !== worktreeName,
+            ),
+          };
+        }),
+        { key: "name" },
+      ),
     );
     clearTaskStatus(workspaceName, worktreeName);
     WorkspaceService.ForceRemoveWorktree(workspaceName, worktreeName).catch(
