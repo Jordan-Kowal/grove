@@ -1,5 +1,14 @@
-import { EditorService, SoundService } from "@backend";
-import { Bell, Check, Code, Info, Monitor, Play, X } from "lucide-solid";
+import { EditorService, SnapService, SoundService } from "@backend";
+import {
+  Bell,
+  Check,
+  Code,
+  ExternalLink,
+  Info,
+  Monitor,
+  Play,
+  X,
+} from "lucide-solid";
 import {
   type Component,
   createSignal,
@@ -107,6 +116,17 @@ export const GeneralSettings: Component = () => {
             }
           />
         </label>
+        <button
+          type="button"
+          class="-mt-2 flex cursor-pointer items-center gap-2 text-[10px] opacity-40 hover:opacity-60"
+          onClick={() => SnapService.OpenAccessibilitySettings()}
+        >
+          <ExternalLink size={10} class="shrink-0" />
+          <span>
+            Requires Accessibility permission.{" "}
+            <span class="underline">Open Settings</span>
+          </span>
+        </button>
       </Section>
 
       {/* Notifications */}
