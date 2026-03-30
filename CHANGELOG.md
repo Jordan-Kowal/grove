@@ -16,6 +16,7 @@
 - 🐞 Fix Claude session detection when running from a subdirectory of a worktree
 - 🐞 Branch name input now allows `/` for namespaced branches (e.g. `feature/my-branch`)
 - 🐞 Git operations targeting remote branches (rebase, checkout, new branch, worktree creation) now fetch the remote first to ensure refs are up to date
+- 🐞 Fix dashboard showing empty branch/diff data on app startup until a Claude session is detected
 
 ## 0.1.0 - 2026-03-30
 

@@ -58,8 +58,11 @@ func (s *MonitorService) ServiceStartup(_ context.Context, _ application.Service
 	application.Get().Event.On("refresh-requested", func(_ *application.CustomEvent) {
 		s.RefreshNow()
 	})
-	// Populate workspaces before launching pollers so pollGit sees the worktree list.
+	// Fully populate workspaces (structure + git + claude) before launching pollers
+	// so the frontend's initial GetWorkspaces() call returns complete data.
 	s.refreshWorkspaces()
+	s.refreshGit()
+	s.refreshClaude()
 	go s.pollClaude()
 	go s.pollGit()
 	return nil
@@ -129,8 +132,6 @@ func (s *MonitorService) RefreshNow() {
 
 // pollClaude polls Claude session status every 2s and detects new/removed worktrees.
 func (s *MonitorService) pollClaude() {
-	s.refreshWorkspaces()
-	s.refreshClaude()
 	ticker := time.NewTicker(claudePollInterval)
 	defer ticker.Stop()
 	for {
@@ -151,7 +152,6 @@ func (s *MonitorService) pollClaude() {
 // pollGit runs git diff/status on all worktrees every 10s.
 // Skips the tick if the previous scan is still running (slow monorepo guard).
 func (s *MonitorService) pollGit() {
-	s.refreshGit()
 	ticker := time.NewTicker(gitPollInterval)
 	defer ticker.Stop()
 	for {
