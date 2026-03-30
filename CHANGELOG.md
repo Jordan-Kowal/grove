@@ -8,6 +8,10 @@
 - 🔧 Others
 - 💥 Breaking
 
+## TBD
+
+- 🐞 Fix scripts missing CLI tools (`go`, `task`) when launched from Finder — PATH resolution now uses interactive shell mode
+
 ## 0.1.1 - 2026-03-30
 
 - 🚀 Added "Sync main checkout" action in workspace menu — resets the main working tree to match HEAD (with confirmation)
