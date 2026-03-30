@@ -100,7 +100,7 @@ func fetchRemoteIfNeeded(repoPath, ref string) error {
 	cmd := exec.Command("git", "-C", repoPath, "remote") // #nosec G204
 	out, err := cmd.Output()
 	if err != nil {
-		return nil // can't list remotes, skip fetch
+		return nil //nolint:nilerr // intentional: if we can't list remotes, skip fetch gracefully
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		if strings.TrimSpace(line) == remote {

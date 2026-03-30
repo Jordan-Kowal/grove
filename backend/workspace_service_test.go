@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const emptyLabel = "(empty)"
+
 func TestValidateName(t *testing.T) {
 	valid := []string{
 		"my-worktree",
@@ -45,7 +47,7 @@ func TestValidateName(t *testing.T) {
 	for _, tt := range invalid {
 		label := tt.name
 		if label == "" {
-			label = "(empty)"
+			label = emptyLabel
 		}
 		t.Run("invalid/"+label, func(t *testing.T) {
 			err := validateName(tt.name)
@@ -94,7 +96,7 @@ func TestValidateBranchName(t *testing.T) {
 	for _, tt := range invalid {
 		label := tt.name
 		if label == "" {
-			label = "(empty)"
+			label = emptyLabel
 		}
 		t.Run("invalid/"+label, func(t *testing.T) {
 			err := validateBranchName(tt.name)
