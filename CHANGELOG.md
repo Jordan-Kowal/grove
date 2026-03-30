@@ -8,7 +8,7 @@
 - 🔧 Others
 - 💥 Breaking
 
-## TBD
+## 0.1.2 - 2026-03-30
 
 - ✨ Add link to macOS Accessibility settings near "Dock to edge" toggle — helps re-grant permission after updates
 - ✨ Update dialog now warns about re-granting Accessibility permission
