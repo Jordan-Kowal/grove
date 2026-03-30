@@ -52,6 +52,7 @@ type WorktreeTaskEvent struct {
 const unknownBranch = "unknown"
 
 var validNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9\-_]*$`)
+var validBranchPattern = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-_/]*[a-zA-Z0-9\-_])?$`)
 
 // validateName checks that a name is safe for use as a directory name.
 func validateName(name string) error {
@@ -65,6 +66,52 @@ func validateName(name string) error {
 		return fmt.Errorf("name %q contains invalid characters (only letters, numbers, hyphens, underscores)", name)
 	}
 	return nil
+}
+
+// validateBranchName checks that a name is valid as a git branch name.
+// Allows slashes for namespaced branches (e.g. feature/my-branch).
+func validateBranchName(name string) error {
+	if name == "" {
+		return fmt.Errorf("branch name cannot be empty")
+	}
+	if name == "." || name == ".." {
+		return fmt.Errorf("invalid branch name %q", name)
+	}
+	if strings.Contains(name, "..") {
+		return fmt.Errorf("branch name %q contains '..'", name)
+	}
+	if strings.Contains(name, "//") {
+		return fmt.Errorf("branch name %q contains consecutive slashes", name)
+	}
+	if !validBranchPattern.MatchString(name) {
+		return fmt.Errorf("branch name %q contains invalid characters (only letters, numbers, hyphens, underscores, slashes)", name)
+	}
+	return nil
+}
+
+// fetchRemoteIfNeeded fetches the remote when ref looks like a remote tracking branch (e.g. "origin/main").
+func fetchRemoteIfNeeded(repoPath, ref string) error {
+	parts := strings.SplitN(ref, "/", 2)
+	if len(parts) < 2 {
+		return nil // local branch, no fetch needed
+	}
+	remote := parts[0]
+	// Verify it's an actual remote
+	cmd := exec.Command("git", "-C", repoPath, "remote") // #nosec G204
+	out, err := cmd.Output()
+	if err != nil {
+		return nil //nolint:nilerr // intentional: if we can't list remotes, skip fetch gracefully
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if strings.TrimSpace(line) == remote {
+			fetchCmd := exec.Command("git", "-C", repoPath, "fetch", remote) // #nosec G204
+			if fetchOut, fetchErr := fetchCmd.CombinedOutput(); fetchErr != nil {
+				return fmt.Errorf("fetch %s failed: %s", remote, strings.TrimSpace(string(fetchOut)))
+			}
+			return nil
+		}
+	}
+	return nil // not a remote ref, skip
 }
 
 // WorkspaceService manages workspace and worktree CRUD operations.
@@ -322,6 +369,11 @@ func (s *WorkspaceService) RebaseWorktree(workspaceName, worktreeName, targetBra
 	go func() {
 		worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
 		s.emitTask(workspaceName, worktreeName, StepRebase, StatusInProgress, "")
+		// Fetch remote so the target ref is up to date
+		if err := fetchRemoteIfNeeded(worktreePath, targetBranch); err != nil {
+			s.emitTask(workspaceName, worktreeName, StepRebase, StatusFailed, err.Error())
+			return
+		}
 		cmd := exec.Command("git", "-C", worktreePath, "rebase", targetBranch) // #nosec G204
 		if out, err := cmd.CombinedOutput(); err != nil {
 			// Abort the failed rebase to leave the worktree in a clean state
@@ -343,6 +395,11 @@ func (s *WorkspaceService) CheckoutBranch(workspaceName, worktreeName, branch st
 	go func() {
 		worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
 		s.emitTask(workspaceName, worktreeName, StepCheckout, StatusInProgress, "")
+		// Fetch remote so the branch ref is up to date
+		if err := fetchRemoteIfNeeded(worktreePath, branch); err != nil {
+			s.emitTask(workspaceName, worktreeName, StepCheckout, StatusFailed, err.Error())
+			return
+		}
 		cmd := exec.Command("git", "-C", worktreePath, "checkout", branch) // #nosec G204
 		if out, err := cmd.CombinedOutput(); err != nil {
 			s.emitTask(workspaceName, worktreeName, StepCheckout, StatusFailed, strings.TrimSpace(string(out)))
@@ -355,7 +412,7 @@ func (s *WorkspaceService) CheckoutBranch(workspaceName, worktreeName, branch st
 
 // NewBranchOnWorktree creates a fresh branch from baseBranch on the worktree.
 func (s *WorkspaceService) NewBranchOnWorktree(workspaceName, worktreeName, branchName string) {
-	if validateName(workspaceName) != nil || validateName(worktreeName) != nil || validateName(branchName) != nil {
+	if validateName(workspaceName) != nil || validateName(worktreeName) != nil || validateBranchName(branchName) != nil {
 		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, "invalid name")
 		return
 	}
@@ -367,6 +424,11 @@ func (s *WorkspaceService) NewBranchOnWorktree(workspaceName, worktreeName, bran
 		}
 		worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
 		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusInProgress, "")
+		// Fetch remote so the base branch ref is up to date
+		if err := fetchRemoteIfNeeded(worktreePath, baseBranch); err != nil {
+			s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, err.Error())
+			return
+		}
 		cmd := exec.Command("git", "-C", worktreePath, "checkout", "-b", branchName, baseBranch) // #nosec G204
 		if out, err := cmd.CombinedOutput(); err != nil {
 			s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, strings.TrimSpace(string(out)))
@@ -387,6 +449,27 @@ func (s *WorkspaceService) OpenFolderDialog() string {
 		SetTitle("Select Git Repository").
 		PromptForSingleSelection()
 	return path
+}
+
+// SyncMainCheckout resets the main checkout's working tree to match HEAD.
+// This discards all local changes and removes untracked files in the repo root.
+func (s *WorkspaceService) SyncMainCheckout(workspaceName string) error {
+	if validateName(workspaceName) != nil {
+		return fmt.Errorf("invalid workspace name")
+	}
+	config := s.readConfig(workspaceName)
+	if config.RepoPath == "" {
+		return fmt.Errorf("workspace not found")
+	}
+	restore := exec.Command("git", "-C", config.RepoPath, "restore", ".") // #nosec G204
+	if out, err := restore.CombinedOutput(); err != nil {
+		return fmt.Errorf("git restore failed: %s", strings.TrimSpace(string(out)))
+	}
+	clean := exec.Command("git", "-C", config.RepoPath, "clean", "-fd") // #nosec G204
+	if out, err := clean.CombinedOutput(); err != nil {
+		return fmt.Errorf("git clean failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // --- Async creation flow ---
@@ -417,6 +500,12 @@ func (s *WorkspaceService) createWorktreeAsync(workspaceName, worktreeName strin
 	baseBranch := config.BaseBranch
 	if baseBranch == "" {
 		baseBranch = "origin/main"
+	}
+
+	// Fetch remote so the base branch ref is up to date
+	if err := fetchRemoteIfNeeded(config.RepoPath, baseBranch); err != nil {
+		s.emitTask(workspaceName, worktreeName, StepGitWorktree, StatusFailed, err.Error())
+		return
 	}
 
 	// Try creating a new branch; if it already exists, reuse it

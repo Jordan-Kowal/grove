@@ -4,6 +4,7 @@ import {
   EllipsisVertical,
   ExternalLink,
   Plus,
+  RefreshCw,
   Trash2,
 } from "lucide-solid";
 import {
@@ -30,6 +31,7 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
   const [showMenu, setShowMenu] = createSignal(false);
   const [showAddInput, setShowAddInput] = createSignal(false);
   const [confirmRemove, setConfirmRemove] = createSignal(false);
+  const [confirmSync, setConfirmSync] = createSignal(false);
 
   const name = () => props.workspace.name;
 
@@ -100,6 +102,19 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
                   <li>
                     <button
                       type="button"
+                      class="text-xs"
+                      onClick={() => {
+                        setShowMenu(false);
+                        setConfirmSync(true);
+                      }}
+                    >
+                      <RefreshCw size={12} />
+                      Sync main checkout
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
                       class="text-error text-xs"
                       onClick={() => {
                         setShowMenu(false);
@@ -116,6 +131,32 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
           </div>
         </div>
       </div>
+
+      {/* Sync main checkout confirmation */}
+      <Show when={confirmSync()}>
+        <div class="flex items-center gap-1 px-2 py-1">
+          <span class="text-[10px] text-warning flex-1">
+            Discard all changes in main checkout?
+          </span>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] text-info opacity-70 hover:opacity-100"
+            onClick={() => {
+              setConfirmSync(false);
+              ctx.syncMainCheckout(name());
+            }}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] opacity-50 hover:opacity-100"
+            onClick={() => setConfirmSync(false)}
+          >
+            No
+          </button>
+        </div>
+      </Show>
 
       {/* Remove workspace confirmation */}
       <Show when={confirmRemove()}>

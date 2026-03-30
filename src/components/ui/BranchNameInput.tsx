@@ -5,6 +5,7 @@ type BranchNameInputProps = {
   forbiddenNames: string[];
   onSubmit: (name: string) => void;
   onCancel: () => void;
+  allowSlash?: boolean;
 };
 
 export const BranchNameInput: Component<BranchNameInputProps> = (props) => {
@@ -39,10 +40,10 @@ export const BranchNameInput: Component<BranchNameInputProps> = (props) => {
         placeholder={props.placeholder}
         value={value()}
         onInput={(e) => {
-          const sanitized = e.currentTarget.value.replace(
-            /[^a-zA-Z0-9\-_]/g,
-            "",
-          );
+          const pattern = props.allowSlash
+            ? /[^a-zA-Z0-9\-_/]/g
+            : /[^a-zA-Z0-9\-_]/g;
+          const sanitized = e.currentTarget.value.replace(pattern, "");
           e.currentTarget.value = sanitized;
           setValue(sanitized);
         }}

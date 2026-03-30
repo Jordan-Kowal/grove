@@ -44,6 +44,7 @@ declare module "@backend" {
       branchName: string,
     ): Promise<void>;
     OpenFolderDialog(): Promise<string>;
+    SyncMainCheckout(workspaceName: string): Promise<void>;
   };
 
   export type EditorBounds = {

@@ -59,6 +59,7 @@ export const QuickActionPanel: Component<QuickActionPanelProps> = (props) => {
         <BranchNameInput
           placeholder="Branch name..."
           forbiddenNames={props.existingBranches}
+          allowSlash
           onSubmit={(name) => {
             ctx.newBranchOnWorktree(
               props.workspaceName,
