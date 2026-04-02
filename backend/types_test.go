@@ -7,11 +7,11 @@ func TestClaudeStatusPriority(t *testing.T) {
 		status ClaudeStatus
 		want   int
 	}{
-		{ClaudeStatusPermission, 3},
-		{ClaudeStatusQuestion, 3},
+		{ClaudeStatusPermission, 4},
+		{ClaudeStatusQuestion, 4},
+		{ClaudeStatusDone, 3},
 		{ClaudeStatusWorking, 2},
 		{ClaudeStatusIdle, 1},
-		{ClaudeStatusDone, 1},
 		{ClaudeStatus("unknown"), 0},
 	}
 
@@ -23,9 +23,12 @@ func TestClaudeStatusPriority(t *testing.T) {
 		})
 	}
 
-	// Verify ordering: permission > working > idle
-	if claudeStatusPriority(ClaudeStatusPermission) <= claudeStatusPriority(ClaudeStatusWorking) {
-		t.Error("permission should have higher priority than working")
+	// Verify ordering: permission > done > working > idle
+	if claudeStatusPriority(ClaudeStatusPermission) <= claudeStatusPriority(ClaudeStatusDone) {
+		t.Error("permission should have higher priority than done")
+	}
+	if claudeStatusPriority(ClaudeStatusDone) <= claudeStatusPriority(ClaudeStatusWorking) {
+		t.Error("done should have higher priority than working")
 	}
 	if claudeStatusPriority(ClaudeStatusWorking) <= claudeStatusPriority(ClaudeStatusIdle) {
 		t.Error("working should have higher priority than idle")

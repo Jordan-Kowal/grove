@@ -8,6 +8,11 @@
 - 🔧 Others
 - 💥 Breaking
 
+## TBD
+
+- ✨ "Done" status now surfaces above "working" when multiple sessions run in the same worktree
+- ✨ Claude hook settings auto-update on app launch when commands change
+
 ## 0.1.2 - 2026-03-30
 
 - ✨ Add link to macOS Accessibility settings near "Dock to edge" toggle — helps re-grant permission after updates

@@ -22,17 +22,18 @@ const (
 
 // MonitorService polls workspace/worktree status and emits events on changes.
 type MonitorService struct {
-	workspaceSvc *WorkspaceService
-	soundSvc     *SoundService
-	traySvc      *TrayService
-	groveDir     string
-	mu           sync.RWMutex
-	workspaces   []Workspace
-	stopCh       chan struct{}
-	stopOnce     sync.Once
-	prevStatuses map[string]ClaudeStatus // track previous status per worktree path
-	doneTimers   map[string]*time.Timer  // per-path timers for done → idle transition
-	gitBusy      sync.Mutex              // prevents overlapping git diff scans
+	workspaceSvc   *WorkspaceService
+	soundSvc       *SoundService
+	traySvc        *TrayService
+	groveDir       string
+	mu             sync.RWMutex
+	workspaces     []Workspace
+	stopCh         chan struct{}
+	stopOnce       sync.Once
+	bootTime       time.Time               // app start time — done before this is treated as idle
+	dismissTimes   map[string]time.Time    // last card click per worktree path
+	prevAggregated map[string]ClaudeStatus // track previous aggregated status per worktree path
+	gitBusy        sync.Mutex              // prevents overlapping git diff scans
 }
 
 // NewMonitorService creates a new MonitorService.
@@ -42,13 +43,14 @@ func NewMonitorService(workspaceSvc *WorkspaceService, soundSvc *SoundService, t
 		log.Fatalf("failed to get home directory: %v", err)
 	}
 	return &MonitorService{
-		workspaceSvc: workspaceSvc,
-		soundSvc:     soundSvc,
-		traySvc:      traySvc,
-		groveDir:     filepath.Join(homeDir, ".grove", "sessions"),
-		stopCh:       make(chan struct{}),
-		prevStatuses: make(map[string]ClaudeStatus),
-		doneTimers:   make(map[string]*time.Timer),
+		workspaceSvc:   workspaceSvc,
+		soundSvc:       soundSvc,
+		traySvc:        traySvc,
+		groveDir:       filepath.Join(homeDir, ".grove", "sessions"),
+		stopCh:         make(chan struct{}),
+		bootTime:       time.Now(),
+		dismissTimes:   make(map[string]time.Time),
+		prevAggregated: make(map[string]ClaudeStatus),
 	}
 }
 
@@ -70,7 +72,7 @@ func (s *MonitorService) ServiceStartup(_ context.Context, _ application.Service
 
 const hookScript = `#!/bin/sh
 # Grove status hook — writes Claude session state to ~/.grove/sessions/
-# Usage: hook.sh <state>  (working|permission|question|idle)
+# Usage: hook.sh <state>  (working|permission|question|done)
 # Called by Claude Code hooks. Uses PPID (the Claude Code process) as the stable identifier.
 mkdir -p "$HOME/.grove/sessions"
 escaped_cwd=$(printf '%s' "$PWD" | sed 's/\\/\\\\/g; s/"/\\"/g')
@@ -99,12 +101,6 @@ func (s *MonitorService) installHook() {
 // ServiceShutdown stops the background goroutines.
 func (s *MonitorService) ServiceShutdown() error {
 	s.stopOnce.Do(func() { close(s.stopCh) })
-	s.mu.Lock()
-	for path, timer := range s.doneTimers {
-		timer.Stop()
-		delete(s.doneTimers, path)
-	}
-	s.mu.Unlock()
 	return nil
 }
 
@@ -288,13 +284,15 @@ func (s *MonitorService) refreshGit() {
 // --- Claude status detection via ~/.grove/sessions/ ---
 
 type groveSession struct {
-	State string `json:"state"`
-	CWD   string `json:"cwd"`
-	PID   int    `json:"pid"`
+	State   string    `json:"state"`
+	CWD     string    `json:"cwd"`
+	PID     int       `json:"pid"`
+	ModTime time.Time // file modification time (not serialized)
 }
 
 func (s *MonitorService) refreshClaude() {
 	sessions := s.readGroveSessions()
+	now := time.Now()
 
 	// Collect all known worktree paths for subdirectory matching.
 	var worktreePaths []string
@@ -304,21 +302,45 @@ func (s *MonitorService) refreshClaude() {
 		}
 	}
 
-	// Build map: worktree path → highest priority status.
-	// A session whose cwd is a subdirectory of a worktree is attributed to that worktree.
-	statusByPath := make(map[string]ClaudeStatus)
+	// Derive effective status per session.
+	// "done" is downgraded to "idle" if: before boot, after dismiss, or expired (>30min).
+	type sessionResult struct {
+		path   string
+		status ClaudeStatus
+	}
+	results := make([]sessionResult, 0, len(sessions))
+
+	s.mu.RLock()
 	for _, sess := range sessions {
 		resolvedPath := resolveWorktreePath(sess.CWD, worktreePaths)
-		newStatus := groveStateToClaudeStatus(sess.State)
-		if existing, ok := statusByPath[resolvedPath]; ok {
-			if claudeStatusPriority(newStatus) > claudeStatusPriority(existing) {
-				statusByPath[resolvedPath] = newStatus
+		status := groveStateToClaudeStatus(sess.State)
+
+		if status == ClaudeStatusDone {
+			dismissTime := s.dismissTimes[resolvedPath]
+			if sess.ModTime.Before(s.bootTime) ||
+				dismissTime.After(sess.ModTime) ||
+				now.Sub(sess.ModTime) > doneDuration {
+				status = ClaudeStatusIdle
+			}
+		}
+
+		results = append(results, sessionResult{path: resolvedPath, status: status})
+	}
+	s.mu.RUnlock()
+
+	// Aggregate per-worktree using priority: Blocked > Done > Working > Idle.
+	statusByPath := make(map[string]ClaudeStatus)
+	for _, r := range results {
+		if existing, ok := statusByPath[r.path]; ok {
+			if claudeStatusPriority(r.status) > claudeStatusPriority(existing) {
+				statusByPath[r.path] = r.status
 			}
 		} else {
-			statusByPath[resolvedPath] = newStatus
+			statusByPath[r.path] = r.status
 		}
 	}
 
+	// Apply aggregated status to worktrees and detect transitions for sounds/tray.
 	s.mu.Lock()
 	doneTransition := false
 	attentionTransition := false
@@ -330,38 +352,19 @@ func (s *MonitorService) refreshClaude() {
 			if status, ok := statusByPath[wt.Path]; ok {
 				newStatus = status
 			}
-			prev := s.prevStatuses[wt.Path]
+			prevAgg := s.prevAggregated[wt.Path]
 
-			// Cancel any existing done→idle timer when a new real status arrives
-			if timer, ok := s.doneTimers[wt.Path]; ok && newStatus != ClaudeStatusIdle {
-				timer.Stop()
-				delete(s.doneTimers, wt.Path)
-			}
-
-			// Detect working → non-working transition: show "done" for 10s
-			if prev == ClaudeStatusWorking && newStatus != ClaudeStatusWorking {
+			if newStatus == ClaudeStatusDone && prevAgg != ClaudeStatusDone {
 				doneTransition = true
-				if newStatus == ClaudeStatusIdle {
-					newStatus = ClaudeStatusDone
-					s.scheduleDoneExpiry(wt.Path)
-				}
 			}
-
-			// If this path is currently "done" and the new status is idle, keep showing done
-			if prev == ClaudeStatusDone && newStatus == ClaudeStatusIdle {
-				if _, hasTimer := s.doneTimers[wt.Path]; hasTimer {
-					newStatus = ClaudeStatusDone
-				}
-			}
-
 			if (newStatus == ClaudeStatusPermission || newStatus == ClaudeStatusQuestion) &&
-				prev != ClaudeStatusPermission && prev != ClaudeStatusQuestion {
+				prevAgg != ClaudeStatusPermission && prevAgg != ClaudeStatusQuestion {
 				attentionTransition = true
 			}
 			if newStatus == ClaudeStatusPermission || newStatus == ClaudeStatusQuestion {
 				needsAttention = true
 			}
-			s.prevStatuses[wt.Path] = newStatus
+			s.prevAggregated[wt.Path] = newStatus
 			wt.ClaudeStatus = newStatus
 		}
 	}
@@ -380,54 +383,16 @@ func (s *MonitorService) refreshClaude() {
 	}
 }
 
-// DismissDone immediately transitions a worktree from "done" to "idle",
-// cancelling any pending done-expiry timer. No-op if the path is not in "done" state.
-func (s *MonitorService) DismissDone(path string) {
-	s.mu.Lock()
-	if timer, ok := s.doneTimers[path]; ok {
-		timer.Stop()
-		delete(s.doneTimers, path)
-	}
-	if s.prevStatuses[path] != ClaudeStatusDone {
-		s.mu.Unlock()
-		return
-	}
-	s.prevStatuses[path] = ClaudeStatusIdle
-	for i := range s.workspaces {
-		for j := range s.workspaces[i].Worktrees {
-			if s.workspaces[i].Worktrees[j].Path == path {
-				s.workspaces[i].Worktrees[j].ClaudeStatus = ClaudeStatusIdle
-			}
-		}
-	}
-	s.mu.Unlock()
-	application.Get().Event.Emit("workspaces-updated", s.GetWorkspaces())
-}
-
 const doneDuration = 30 * time.Minute
 
-// scheduleDoneExpiry starts a timer that transitions a worktree from "done" to "idle"
-// after doneDuration and emits a workspaces-updated event. Must be called with s.mu held.
-func (s *MonitorService) scheduleDoneExpiry(path string) {
-	if timer, ok := s.doneTimers[path]; ok {
-		timer.Stop()
-	}
-	s.doneTimers[path] = time.AfterFunc(doneDuration, func() {
-		s.mu.Lock()
-		delete(s.doneTimers, path)
-		if s.prevStatuses[path] == ClaudeStatusDone {
-			s.prevStatuses[path] = ClaudeStatusIdle
-			for i := range s.workspaces {
-				for j := range s.workspaces[i].Worktrees {
-					if s.workspaces[i].Worktrees[j].Path == path {
-						s.workspaces[i].Worktrees[j].ClaudeStatus = ClaudeStatusIdle
-					}
-				}
-			}
-		}
-		s.mu.Unlock()
-		application.Get().Event.Emit("workspaces-updated", s.GetWorkspaces())
-	})
+// DismissDone records a dismiss click for the given worktree path,
+// causing all "done" sessions in that path to be treated as "idle".
+func (s *MonitorService) DismissDone(path string) {
+	s.mu.Lock()
+	s.dismissTimes[path] = time.Now()
+	s.mu.Unlock()
+	s.refreshClaude()
+	application.Get().Event.Emit("workspaces-updated", s.GetWorkspaces())
 }
 
 func (s *MonitorService) readGroveSessions() []groveSession {
@@ -442,8 +407,8 @@ func (s *MonitorService) readGroveSessions() []groveSession {
 			continue
 		}
 
-		path := filepath.Join(s.groveDir, entry.Name())
-		data, err := os.ReadFile(path) // #nosec G304
+		filePath := filepath.Join(s.groveDir, entry.Name())
+		data, err := os.ReadFile(filePath) // #nosec G304
 		if err != nil {
 			continue
 		}
@@ -455,9 +420,15 @@ func (s *MonitorService) readGroveSessions() []groveSession {
 
 		// Remove session file if Claude process is dead.
 		if !isProcessAlive(sess.PID) {
-			_ = os.Remove(path)
+			_ = os.Remove(filePath)
 			continue
 		}
+
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		sess.ModTime = info.ModTime()
 
 		sessions = append(sessions, sess)
 	}
@@ -483,8 +454,8 @@ func groveStateToClaudeStatus(state string) ClaudeStatus {
 		return ClaudeStatusPermission
 	case "question":
 		return ClaudeStatusQuestion
-	case "idle":
-		return ClaudeStatusIdle
+	case "done":
+		return ClaudeStatusDone
 	default:
 		return ClaudeStatusIdle
 	}
