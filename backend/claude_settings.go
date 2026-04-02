@@ -23,7 +23,7 @@ func groveHooks(hookPath string) []groveHookEntry {
 		{Event: "PostToolUse", Command: hookPath + " working"},
 		{Event: "PermissionRequest", Command: hookPath + " permission"},
 		{Event: "Notification", Matcher: "elicitation_dialog", Command: hookPath + " question"},
-		{Event: "Stop", Command: hookPath + " idle"},
+		{Event: "Stop", Command: hookPath + " done"},
 	}
 }
 
@@ -99,7 +99,8 @@ func writeSettingsFile(path string, settings map[string]any) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
-// mergeGroveHooks adds missing Grove hook entries to settings. Returns true if any were added.
+// mergeGroveHooks ensures all Grove hook entries in settings are present and up to date.
+// Adds missing hooks and updates stale ones (e.g. command changed). Returns true if modified.
 func mergeGroveHooks(settings map[string]any, hooks []groveHookEntry) bool {
 	hooksObj, _ := settings["hooks"].(map[string]any)
 	if hooksObj == nil {
@@ -109,17 +110,32 @@ func mergeGroveHooks(settings map[string]any, hooks []groveHookEntry) bool {
 
 	modified := false
 	for _, h := range hooks {
-		if hasGroveHook(hooksObj, h) {
-			continue
+		switch groveHookState(hooksObj, h) {
+		case hookMissing:
+			appendHook(hooksObj, h)
+			modified = true
+		case hookStale:
+			removeGroveHook(hooksObj, h.Event)
+			appendHook(hooksObj, h)
+			modified = true
+		case hookCurrent:
+			// already up to date
 		}
-		appendHook(hooksObj, h)
-		modified = true
 	}
 	return modified
 }
 
-// hasGroveHook checks if a Grove hook entry already exists under the given event key.
-func hasGroveHook(hooksObj map[string]any, entry groveHookEntry) bool {
+type hookStatus int
+
+const (
+	hookMissing hookStatus = iota
+	hookStale
+	hookCurrent
+)
+
+// groveHookState checks whether a Grove hook entry exists under the given event key
+// and whether its command matches. Returns hookMissing, hookStale, or hookCurrent.
+func groveHookState(hooksObj map[string]any, entry groveHookEntry) hookStatus {
 	eventHooks, _ := hooksObj[entry.Event].([]any)
 	for _, group := range eventHooks {
 		groupMap, ok := group.(map[string]any)
@@ -133,12 +149,50 @@ func hasGroveHook(hooksObj map[string]any, entry groveHookEntry) bool {
 				continue
 			}
 			cmd, _ := hookMap["command"].(string)
-			if strings.Contains(cmd, "grove/hook.sh") {
-				return true
+			if !strings.Contains(cmd, "grove/hook.sh") {
+				continue
 			}
+			if cmd == entry.Command {
+				return hookCurrent
+			}
+			return hookStale
 		}
 	}
-	return false
+	return hookMissing
+}
+
+// removeGroveHook removes all Grove hook groups from the given event key.
+func removeGroveHook(hooksObj map[string]any, event string) {
+	eventHooks, _ := hooksObj[event].([]any)
+	var kept []any
+	for _, group := range eventHooks {
+		groupMap, ok := group.(map[string]any)
+		if !ok {
+			kept = append(kept, group)
+			continue
+		}
+		innerHooks, _ := groupMap["hooks"].([]any)
+		isGrove := false
+		for _, hook := range innerHooks {
+			hookMap, ok := hook.(map[string]any)
+			if !ok {
+				continue
+			}
+			cmd, _ := hookMap["command"].(string)
+			if strings.Contains(cmd, "grove/hook.sh") {
+				isGrove = true
+				break
+			}
+		}
+		if !isGrove {
+			kept = append(kept, group)
+		}
+	}
+	if len(kept) == 0 {
+		delete(hooksObj, event)
+	} else {
+		hooksObj[event] = kept
+	}
 }
 
 // appendHook adds a Grove hook entry to the event's hook array.

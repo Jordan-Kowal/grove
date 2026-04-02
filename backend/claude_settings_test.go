@@ -83,7 +83,7 @@ func TestMergeGroveHooks_AlreadyPresent(t *testing.T) {
 					"hooks": []any{
 						map[string]any{
 							"type":    "command",
-							"command": "/home/user/.grove/hook.sh idle",
+							"command": "/home/user/.grove/hook.sh done",
 							"async":   true,
 						},
 					},
@@ -96,6 +96,42 @@ func TestMergeGroveHooks_AlreadyPresent(t *testing.T) {
 
 	if modified {
 		t.Fatal("expected no modification when hooks already present")
+	}
+}
+
+func TestMergeGroveHooks_UpdatesStaleCommand(t *testing.T) {
+	// Simulate old hook with "idle" that should be updated to "done"
+	settings := map[string]any{
+		"hooks": map[string]any{
+			"Stop": []any{
+				map[string]any{
+					"hooks": []any{
+						map[string]any{
+							"type":    "command",
+							"command": "/home/user/.grove/hook.sh idle",
+							"async":   true,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	modified := mergeGroveHooks(settings, groveHooks("/home/user/.grove/hook.sh"))
+
+	if !modified {
+		t.Fatal("expected settings to be modified when command is stale")
+	}
+
+	hooksObj := settings["hooks"].(map[string]any)
+	stopHooks := hooksObj["Stop"].([]any)
+	group := stopHooks[0].(map[string]any)
+	innerHooks := group["hooks"].([]any)
+	hookMap := innerHooks[0].(map[string]any)
+	cmd := hookMap["command"].(string)
+
+	if cmd != "/home/user/.grove/hook.sh done" {
+		t.Errorf("expected command to be updated to 'done', got %q", cmd)
 	}
 }
 

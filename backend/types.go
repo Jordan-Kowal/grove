@@ -12,13 +12,16 @@ const (
 )
 
 // claudeStatusPriority returns a numeric priority for aggregation (higher = more important).
+// Order: Blocked (permission/question) > Done > Working > Idle.
 func claudeStatusPriority(s ClaudeStatus) int {
 	switch s {
 	case ClaudeStatusPermission, ClaudeStatusQuestion:
+		return 4
+	case ClaudeStatusDone:
 		return 3
 	case ClaudeStatusWorking:
 		return 2
-	case ClaudeStatusIdle, ClaudeStatusDone:
+	case ClaudeStatusIdle:
 		return 1
 	default:
 		return 0

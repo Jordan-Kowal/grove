@@ -25,6 +25,7 @@ func TestGroveStateToClaudeStatus(t *testing.T) {
 		{"working", ClaudeStatusWorking},
 		{"permission", ClaudeStatusPermission},
 		{"question", ClaudeStatusQuestion},
+		{"done", ClaudeStatusDone},
 		{"idle", ClaudeStatusIdle},
 		{"", ClaudeStatusIdle},
 		{"unknown", ClaudeStatusIdle},
