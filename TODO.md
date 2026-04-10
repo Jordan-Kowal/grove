@@ -2,6 +2,7 @@
 
 ## Feature ideas
 
+- [ ] Add a card + claude monitor for the main repo as well
 - [ ] **Workspace filter**: Dropdown/select per workspace to filter worktrees (not persisted across sessions)
 - [ ] **Keyboard shortcuts**: Global hotkeys for common actions (toggle visibility, create worktree, open in editor, navigate worktrees, dismiss notifications). User-configurable bindings.
 - [ ] **Workspace reordering**: Drag-and-drop to reorder workspaces. Requires activation mode with drag anchors on the side. Persisted order — must handle missing/new workspaces gracefully.
