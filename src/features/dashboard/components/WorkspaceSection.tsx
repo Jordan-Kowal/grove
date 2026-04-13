@@ -2,7 +2,6 @@ import {
   ChevronDown,
   ChevronRight,
   EllipsisVertical,
-  ExternalLink,
   Plus,
   RefreshCw,
   Trash2,
@@ -59,14 +58,6 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
           </span>
         </button>
         <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0"
-            onClick={() => ctx.focusEditor(props.workspace.config.repoPath)}
-            title="Open in editor"
-          >
-            <ExternalLink size={12} />
-          </button>
           <button
             type="button"
             class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0"
@@ -186,8 +177,19 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
           </div>
         </Show>
 
-        {/* Worktree list */}
+        {/* Main repo + worktree list */}
         <div class="space-y-0.5 px-1">
+          <WorktreeCard
+            workspaceName={name()}
+            worktree={props.workspace.mainWorktree}
+            baseBranch={baseBranch()}
+            existingBranches={existingBranches()}
+            hasSetupScript={false}
+            isMainRepo
+            onOpenLogs={() =>
+              props.onOpenLogs(props.workspace.mainWorktree.name)
+            }
+          />
           <Show
             when={props.workspace.worktrees?.length > 0}
             fallback={

@@ -399,6 +399,92 @@ func TestIsProcessAlive(t *testing.T) {
 	}
 }
 
+// --- MainWorktree monitoring tests ---
+
+func TestRefreshClaude_MainWorktree_GetsClaudeStatus(t *testing.T) {
+	ws := []Workspace{{
+		Config:       WorkspaceConfig{RepoPath: "/repo"},
+		MainWorktree: WorktreeInfo{Name: MainWorktreeName, Path: "/repo"},
+		Worktrees:    []WorktreeInfo{{Path: "/wt"}},
+	}}
+	sessions := func() []groveSession {
+		return []groveSession{{State: "working", CWD: "/repo", ModTime: time.Now()}}
+	}
+	svc, _, _ := newTestMonitor(ws, sessions)
+
+	svc.refreshClaude()
+
+	svc.mu.RLock()
+	status := svc.workspaces[0].MainWorktree.ClaudeStatus
+	svc.mu.RUnlock()
+
+	if status != ClaudeStatusWorking {
+		t.Errorf("main worktree status = %q, want %q", status, ClaudeStatusWorking)
+	}
+}
+
+func TestRefreshClaude_MainWorktree_SubdirectoryResolvesToMainRepo(t *testing.T) {
+	ws := []Workspace{{
+		Config:       WorkspaceConfig{RepoPath: "/repo"},
+		MainWorktree: WorktreeInfo{Name: MainWorktreeName, Path: "/repo"},
+		Worktrees:    []WorktreeInfo{{Path: "/wt"}},
+	}}
+	sessions := func() []groveSession {
+		return []groveSession{{State: "permission", CWD: "/repo/src/deep", ModTime: time.Now()}}
+	}
+	svc, _, _ := newTestMonitor(ws, sessions)
+
+	svc.refreshClaude()
+
+	svc.mu.RLock()
+	status := svc.workspaces[0].MainWorktree.ClaudeStatus
+	svc.mu.RUnlock()
+
+	if status != ClaudeStatusPermission {
+		t.Errorf("main worktree status = %q, want %q", status, ClaudeStatusPermission)
+	}
+}
+
+func TestRefreshClaude_MainWorktree_NoSession_StaysIdle(t *testing.T) {
+	ws := []Workspace{{
+		Config:       WorkspaceConfig{RepoPath: "/repo"},
+		MainWorktree: WorktreeInfo{Name: MainWorktreeName, Path: "/repo"},
+		Worktrees:    []WorktreeInfo{{Path: "/wt"}},
+	}}
+	sessions := func() []groveSession { return nil }
+	svc, _, _ := newTestMonitor(ws, sessions)
+
+	svc.refreshClaude()
+
+	svc.mu.RLock()
+	status := svc.workspaces[0].MainWorktree.ClaudeStatus
+	svc.mu.RUnlock()
+
+	if status != ClaudeStatusIdle {
+		t.Errorf("main worktree status = %q, want %q", status, ClaudeStatusIdle)
+	}
+}
+
+func TestRefreshClaude_MainWorktree_SoundsAndTray(t *testing.T) {
+	ws := []Workspace{{
+		Config:       WorkspaceConfig{RepoPath: "/repo"},
+		MainWorktree: WorktreeInfo{Name: MainWorktreeName, Path: "/repo"},
+	}}
+	sessions := func() []groveSession {
+		return []groveSession{{State: "question", CWD: "/repo", ModTime: time.Now()}}
+	}
+	svc, sound, tray := newTestMonitor(ws, sessions)
+
+	svc.refreshClaude()
+
+	if len(sound.calls) != 1 || sound.calls[0] != true {
+		t.Errorf("sound calls = %v, want [true] (attention sound for main worktree)", sound.calls)
+	}
+	if !tray.badge {
+		t.Error("tray badge should be set for main worktree needing attention")
+	}
+}
+
 func TestGroveStateToClaudeStatus(t *testing.T) {
 	tests := []struct {
 		state string

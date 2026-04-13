@@ -27,6 +27,7 @@ export type WorktreeInfo = {
 export type Workspace = {
   name: string;
   config: WorkspaceConfig;
+  mainWorktree: WorktreeInfo;
   worktrees: WorktreeInfo[];
 };
 

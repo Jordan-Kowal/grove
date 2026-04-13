@@ -11,9 +11,10 @@ type WorkspaceConfig struct {
 
 // Workspace represents a registered git repository with its worktrees.
 type Workspace struct {
-	Name      string          `json:"name"`
-	Config    WorkspaceConfig `json:"config"`
-	Worktrees []WorktreeInfo  `json:"worktrees"`
+	Name         string          `json:"name"`
+	Config       WorkspaceConfig `json:"config"`
+	MainWorktree WorktreeInfo    `json:"mainWorktree"`
+	Worktrees    []WorktreeInfo  `json:"worktrees"`
 }
 
 // BranchInfo describes a git branch (local or remote).

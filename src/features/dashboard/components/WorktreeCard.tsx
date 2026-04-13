@@ -2,6 +2,7 @@ import {
   Check,
   ClipboardCopy,
   EllipsisVertical,
+  FolderGit,
   GitBranch,
   GitBranchPlus,
   GitMerge,
@@ -22,6 +23,7 @@ type WorktreeCardProps = {
   existingBranches: string[];
   baseBranch: string;
   hasSetupScript: boolean;
+  isMainRepo?: boolean;
   onOpenLogs: () => void;
 };
 
@@ -46,7 +48,8 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
   const key = () => `${props.workspaceName}/${props.worktree.name}`;
   const task = () => ctx.taskStatuses()[key()];
   const startedAt = () => ctx.taskStartedAt()[key()];
-  const deletePending = () => ctx.pendingDeletes()[key()] ?? false;
+  const deletePending = () =>
+    !props.isMainRepo && (ctx.pendingDeletes()[key()] ?? false);
   const step = () => task()?.step;
   const status = () => task()?.status;
   const hasDiff = () => props.worktree.filesChanged > 0;
@@ -93,8 +96,11 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
           <div class="flex items-center gap-1.5">
             <StatusBadge status={props.worktree.claudeStatus} />
             <span class="text-xs font-medium truncate">
-              {props.worktree.name}
+              {props.isMainRepo ? props.workspaceName : props.worktree.name}
             </span>
+            <Show when={props.isMainRepo}>
+              <FolderGit size={10} class="opacity-40 shrink-0" />
+            </Show>
           </div>
           <Show when={props.worktree.branch}>
             <div class="flex items-center justify-between pl-4.5">
@@ -184,7 +190,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                       {copied() ? "Copied!" : "Copy branch name"}
                     </button>
                   </li>
-                  <Show when={props.hasSetupScript}>
+                  <Show when={!props.isMainRepo && props.hasSetupScript}>
                     <li>
                       <button
                         type="button"
@@ -203,23 +209,25 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                       </button>
                     </li>
                   </Show>
-                  <li>
-                    <button
-                      type="button"
-                      class="text-error text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowMenu(false);
-                        ctx.removeWorktree(
-                          props.workspaceName,
-                          props.worktree.name,
-                        );
-                      }}
-                    >
-                      <Trash2 size={12} />
-                      Remove worktree
-                    </button>
-                  </li>
+                  <Show when={!props.isMainRepo}>
+                    <li>
+                      <button
+                        type="button"
+                        class="text-error text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowMenu(false);
+                          ctx.removeWorktree(
+                            props.workspaceName,
+                            props.worktree.name,
+                          );
+                        }}
+                      >
+                        <Trash2 size={12} />
+                        Remove worktree
+                      </button>
+                    </li>
+                  </Show>
                 </ul>
               </div>
             </Show>
@@ -228,7 +236,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
       </div>
 
       {/* Delete confirmation */}
-      <Show when={deletePending()}>
+      <Show when={!props.isMainRepo && deletePending()}>
         <div class="flex flex-col gap-0.5 pl-4.5 mt-0.5">
           <div class="flex items-center gap-1">
             <span class="text-[10px] text-warning flex-1">Delete?</span>

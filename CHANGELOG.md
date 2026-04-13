@@ -12,8 +12,13 @@
 
 - 🚀 Copy branch name from worktree card context menu
 - 🚀 Configurable "done" badge duration — choose instant dismiss, 1–60 minutes, or persist until clicked (Settings > Notifications)
+- 🚀 Main repo card: each workspace now shows a card for the main repository checkout (first position), with Claude session monitoring, git diff stats, and branch operations (rebase, checkout, new branch)
 - ✨ "Done" status now surfaces above "working" when multiple sessions run in the same worktree
 - ✨ Claude hook settings auto-update on app launch when commands change
+- 🐞 Fix crash in error log when worktree name is missing from log key
+- 🐞 Fix data race in Claude session polling
+- 🐞 Workspace config changes (base branch, scripts) now refresh the dashboard immediately
+- 🐞 Sound preference validation — invalid values are rejected instead of silently accepted
 
 ## 0.1.2 - 2026-03-30
 
