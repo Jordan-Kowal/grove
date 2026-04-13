@@ -10,6 +10,8 @@
 
 ## TBD
 
+- 🚀 Copy branch name from worktree card context menu
+- 🚀 Configurable "done" badge duration — choose instant dismiss, 1–60 minutes, or persist until clicked (Settings > Notifications)
 - ✨ "Done" status now surfaces above "working" when multiple sessions run in the same worktree
 - ✨ Claude hook settings auto-update on app launch when commands change
 

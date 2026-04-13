@@ -35,6 +35,7 @@ func newTestMonitor(workspaces []Workspace, sessions func() []groveSession) (*Mo
 		dismissTimes:   make(map[string]time.Time),
 		prevAggregated: make(map[string]ClaudeStatus),
 		workspaces:     workspaces,
+		doneDuration:   30 * time.Minute,
 		stopCh:         make(chan struct{}),
 		readSessions:   sessions,
 	}
@@ -264,6 +265,42 @@ func TestRefreshClaude_DismissLogic_DowngradesDoneToIdle(t *testing.T) {
 	svc.mu.RUnlock()
 	if after != ClaudeStatusIdle {
 		t.Errorf("after dismiss: status = %q, want idle", after)
+	}
+}
+
+func TestRefreshClaude_DoneDuration_InstantDismiss(t *testing.T) {
+	ws := []Workspace{{Worktrees: []WorktreeInfo{{Path: "/wt"}}}}
+	sessions := func() []groveSession {
+		return []groveSession{{State: "done", CWD: "/wt", ModTime: time.Now().Add(-time.Millisecond)}}
+	}
+	svc, _, _ := newTestMonitor(ws, sessions)
+	svc.doneDuration = 0
+
+	svc.refreshClaude()
+
+	svc.mu.RLock()
+	status := svc.workspaces[0].Worktrees[0].ClaudeStatus
+	svc.mu.RUnlock()
+	if status != ClaudeStatusIdle {
+		t.Errorf("instant dismiss: status = %q, want idle", status)
+	}
+}
+
+func TestRefreshClaude_DoneDuration_PersistForever(t *testing.T) {
+	ws := []Workspace{{Worktrees: []WorktreeInfo{{Path: "/wt"}}}}
+	sessions := func() []groveSession {
+		return []groveSession{{State: "done", CWD: "/wt", ModTime: time.Now().Add(-30 * time.Minute)}}
+	}
+	svc, _, _ := newTestMonitor(ws, sessions)
+	svc.doneDuration = -1
+
+	svc.refreshClaude()
+
+	svc.mu.RLock()
+	status := svc.workspaces[0].Worktrees[0].ClaudeStatus
+	svc.mu.RUnlock()
+	if status != ClaudeStatusDone {
+		t.Errorf("persist forever: status = %q, want done", status)
 	}
 }
 

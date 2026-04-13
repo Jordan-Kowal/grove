@@ -108,8 +108,9 @@ Grove automatically installs a hook script at `~/.grove/hook.sh` and merges the 
 | Display       | Theme              | Forest                   | Switch between Nord and Forest themes                               |
 | Display       | Keep window on top | On                       | Keep Grove above other windows                                      |
 | Display       | Dock to edge       | On                       | Snap to screen edge at full height, open editors in remaining space |
-| Notifications | Play sound         | When done or needs input | Never, when done or needs input, or only when needs input           |
-| Notifications | Show menu bar icon | Off                      | System tray icon to show/hide Grove                                 |
+| Notifications | Play sound           | When done or needs input | Never, when done or needs input, or only when needs input           |
+| Notifications | "Done" badge duration | 30 minutes               | How long the done badge persists: instant, 1–60 min, or until clicked |
+| Notifications | Show menu bar icon   | Off                      | System tray icon to show/hide Grove                                 |
 | Editor        | Default editor     | Zed                      | macOS app name (e.g. Zed, Visual Studio Code, Cursor)               |
 
 ### Workspace Settings

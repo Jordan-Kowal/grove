@@ -11,6 +11,7 @@ export type Settings = {
   snapToEdges: boolean;
   soundMode: "never" | "permission" | "all";
   soundName: string;
+  doneDuration: number; // minutes; 0 = instant, -1 = persist until clicked
   systemTrayEnabled: boolean;
   editorApp: string;
 };
@@ -21,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   snapToEdges: true,
   soundMode: "all",
   soundName: "Glass",
+  doneDuration: 30,
   systemTrayEnabled: false,
   editorApp: "Zed",
 };

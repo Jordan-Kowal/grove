@@ -11,8 +11,6 @@
 - [ ] **More themes**: Expose additional DaisyUI themes beyond Nord and Forest. Test for sidebar compatibility at 250px.
 - [ ] **Claude session count**: Show the number of ongoing Claude Code sessions per worktree (and/or in tray icon badge).
 - [ ] **Toast notifications**: Transient toasts when Claude needs attention or finishes — shows worktree name and action needed. Clicking the toast navigates to / highlights the relevant worktree card.
-- [ ] **Copy branch name**: One-click copy of branch name from worktree card context menu.
-- [ ] **Configurable "done" duration**: Let users configure how long the "done" status persists (currently hardcoded at 30 minutes). Options: instant dismiss, custom duration, persist until clicked.
 - [ ] **Improve logo design**
 - [ ] **Click-through on unfocused window**: First click on the sidebar when unfocused only focuses the window, requiring a second click. Fix requires CGo + Objective-C to override `acceptsFirstMouse:` on the WKWebView via `NativeWindow()`.
 - [ ] **Accessibility permission notification**: When snap-to-edge fails due to missing Accessibility permission, show an inline notification/banner with a link to open System Settings (using `OpenAccessibilitySettings()`).
