@@ -42,7 +42,3 @@
 - [ ] Guard `ErrorLog.tsx:66` split destructuring — add fallback for `worktreeName` when `logKey` has no `/`.
 - [ ] Replace `let scrollRef` with signal-based ref in `ErrorLog.tsx` auto-scroll `createEffect` — current approach works by `queueMicrotask` timing coincidence.
 
-### Tests
-
-- [ ] Add tests for `resolveWorktreePath` (pure function, easy win).
-- [ ] Add tests for `refreshClaude`/`DismissDone`/`scheduleDoneExpiry` state machine (requires extracting `soundSvc`/`traySvc` behind interfaces and mocking Wails events).

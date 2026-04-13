@@ -20,11 +20,22 @@ const (
 	gitPollInterval    = 10 * time.Second
 )
 
+// soundPlayer is the subset of SoundService used by MonitorService.
+type soundPlayer interface {
+	PlayIfNeeded(isPermission bool)
+}
+
+// trayBadger is the subset of TrayService used by MonitorService.
+type trayBadger interface {
+	SetBadge()
+	RemoveBadge()
+}
+
 // MonitorService polls workspace/worktree status and emits events on changes.
 type MonitorService struct {
 	workspaceSvc   *WorkspaceService
-	soundSvc       *SoundService
-	traySvc        *TrayService
+	soundSvc       soundPlayer
+	traySvc        trayBadger
 	groveDir       string
 	mu             sync.RWMutex
 	workspaces     []Workspace
@@ -34,6 +45,7 @@ type MonitorService struct {
 	dismissTimes   map[string]time.Time    // last card click per worktree path
 	prevAggregated map[string]ClaudeStatus // track previous aggregated status per worktree path
 	gitBusy        sync.Mutex              // prevents overlapping git diff scans
+	readSessions   func() []groveSession   // injectable for testing; defaults to readGroveSessions
 }
 
 // NewMonitorService creates a new MonitorService.
@@ -42,7 +54,7 @@ func NewMonitorService(workspaceSvc *WorkspaceService, soundSvc *SoundService, t
 	if err != nil {
 		log.Fatalf("failed to get home directory: %v", err)
 	}
-	return &MonitorService{
+	svc := &MonitorService{
 		workspaceSvc:   workspaceSvc,
 		soundSvc:       soundSvc,
 		traySvc:        traySvc,
@@ -52,6 +64,8 @@ func NewMonitorService(workspaceSvc *WorkspaceService, soundSvc *SoundService, t
 		dismissTimes:   make(map[string]time.Time),
 		prevAggregated: make(map[string]ClaudeStatus),
 	}
+	svc.readSessions = svc.readGroveSessions
+	return svc
 }
 
 // ServiceStartup installs the hook script and starts background polling.
@@ -291,7 +305,7 @@ type groveSession struct {
 }
 
 func (s *MonitorService) refreshClaude() {
-	sessions := s.readGroveSessions()
+	sessions := s.readSessions()
 	now := time.Now()
 
 	// Collect all known worktree paths for subdirectory matching.
