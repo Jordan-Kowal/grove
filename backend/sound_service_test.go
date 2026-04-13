@@ -6,6 +6,30 @@ import (
 	"testing"
 )
 
+func TestValidMode(t *testing.T) {
+	valid := []string{"never", "permission", "all"}
+	for _, mode := range valid {
+		t.Run("valid/"+mode, func(t *testing.T) {
+			if !validMode(mode) {
+				t.Errorf("validMode(%q) = false, want true", mode)
+			}
+		})
+	}
+
+	invalid := []string{"", "Never", "ALL", "always", "mute"}
+	for _, mode := range invalid {
+		label := mode
+		if label == "" {
+			label = "(empty)"
+		}
+		t.Run("invalid/"+label, func(t *testing.T) {
+			if validMode(mode) {
+				t.Errorf("validMode(%q) = true, want false", mode)
+			}
+		})
+	}
+}
+
 func TestValidSound(t *testing.T) {
 	valid := []string{"Glass", "Ping", "Pop", "Purr", "Tink"}
 	for _, name := range valid {
@@ -49,7 +73,9 @@ func TestGetSounds(t *testing.T) {
 func TestSetPreferences(t *testing.T) {
 	svc := NewSoundService()
 
-	svc.SetPreferences("never", "Pop")
+	if err := svc.SetPreferences("never", "Pop"); err != nil {
+		t.Fatalf("SetPreferences(never, Pop) unexpected error: %v", err)
+	}
 	svc.mu.RLock()
 	if svc.mode != SoundModeNever {
 		t.Errorf("expected mode=never, got %q", svc.mode)
@@ -59,13 +85,36 @@ func TestSetPreferences(t *testing.T) {
 	}
 	svc.mu.RUnlock()
 
-	svc.SetPreferences("permission", "Tink")
+	if err := svc.SetPreferences("permission", "Tink"); err != nil {
+		t.Fatalf("SetPreferences(permission, Tink) unexpected error: %v", err)
+	}
 	svc.mu.RLock()
 	if svc.mode != SoundModePermission {
 		t.Errorf("expected mode=permission, got %q", svc.mode)
 	}
 	if svc.sound != "Tink" {
 		t.Errorf("expected sound=Tink, got %q", svc.sound)
+	}
+	svc.mu.RUnlock()
+}
+
+func TestSetPreferencesRejectsInvalid(t *testing.T) {
+	svc := NewSoundService()
+
+	if err := svc.SetPreferences("invalid", "Glass"); err == nil {
+		t.Error("expected error for invalid mode")
+	}
+	if err := svc.SetPreferences("all", "NonExistent"); err == nil {
+		t.Error("expected error for invalid sound")
+	}
+
+	// Verify original defaults unchanged after rejected calls.
+	svc.mu.RLock()
+	if svc.mode != SoundModeAll {
+		t.Errorf("mode changed to %q after rejected call", svc.mode)
+	}
+	if svc.sound != "Glass" {
+		t.Errorf("sound changed to %q after rejected call", svc.sound)
 	}
 	svc.mu.RUnlock()
 }

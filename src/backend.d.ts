@@ -80,7 +80,7 @@ declare module "@backend" {
 
   export const SoundService: {
     GetSounds(): Promise<string[]>;
-    SetPreferences(mode: string, sound: string): Promise<void>;
+    SetPreferences(mode: string, sound: string): Promise<void>; // rejects on invalid mode/sound
     PlayPreview(name: string): Promise<void>;
   };
 }
