@@ -1,11 +1,6 @@
 import { Check, RefreshCw, ScrollText, Square, Trash2, X } from "lucide-solid";
-import {
-  type Component,
-  createEffect,
-  createSignal,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { type Component, Show } from "solid-js";
+import { useElapsedTimer } from "@/hooks";
 import { TaskStatus, TaskStep, type WorktreeTaskEvent } from "@/types/types";
 import { useDashboardContext } from "../contexts";
 import { ActionButton } from "./ActionButton";
@@ -30,7 +25,6 @@ type TaskStatusBarProps = {
 
 export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
   const ctx = useDashboardContext();
-  const [elapsed, setElapsed] = createSignal(0);
 
   const step = () => props.taskEvent.step;
   const status = () => props.taskEvent.status;
@@ -53,15 +47,7 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
   const forceRemove = () =>
     ctx.forceRemoveWorktree(props.workspaceName, props.worktreeName);
 
-  // Timestamp-based elapsed timer: immune to parent re-renders
-  createEffect(() => {
-    if (!isInProgress() || !props.startedAt) return;
-    const startedAt = props.startedAt;
-    const tick = () => setElapsed(Math.floor((Date.now() - startedAt) / 1000));
-    tick();
-    const interval = setInterval(tick, 1000);
-    onCleanup(() => clearInterval(interval));
-  });
+  const elapsed = useElapsedTimer(isInProgress, () => props.startedAt);
 
   const LogsButton = () => (
     <Show when={hasLogs()}>

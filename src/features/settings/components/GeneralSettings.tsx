@@ -13,29 +13,13 @@ import {
   type Component,
   createSignal,
   For,
-  type JSX,
   onCleanup,
   onMount,
   Show,
 } from "solid-js";
+import { Section } from "@/components/ui";
 import { Theme, useSettingsContext } from "@/contexts";
 import { VersionStatus } from "./VersionStatus";
-
-type SectionProps = {
-  title: string;
-  icon: JSX.Element;
-  children: JSX.Element;
-};
-
-const Section: Component<SectionProps> = (props) => (
-  <div class="space-y-3">
-    <h3 class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider opacity-50">
-      {props.icon}
-      {props.title}
-    </h3>
-    <div class="space-y-3">{props.children}</div>
-  </div>
-);
 
 export const GeneralSettings: Component = () => {
   const { settings, updateSetting } = useSettingsContext();

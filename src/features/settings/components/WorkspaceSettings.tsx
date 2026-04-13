@@ -5,28 +5,12 @@ import {
   createEffect,
   createResource,
   createSignal,
-  type JSX,
   on,
   onCleanup,
 } from "solid-js";
-import { BranchSelect } from "@/components/ui";
+import { BranchSelect, Section } from "@/components/ui";
+import { useDashboardContext } from "@/features/dashboard/contexts";
 import type { WorkspaceConfig } from "@/types/types";
-
-type SectionProps = {
-  title: string;
-  icon: JSX.Element;
-  children: JSX.Element;
-};
-
-const Section: Component<SectionProps> = (props) => (
-  <div class="space-y-3">
-    <h3 class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider opacity-50">
-      {props.icon}
-      {props.title}
-    </h3>
-    <div class="space-y-3">{props.children}</div>
-  </div>
-);
 
 type WorkspaceSettingsProps = {
   name: string;
@@ -45,6 +29,7 @@ const fetchConfig = async (name: string): Promise<WorkspaceConfig> => {
 };
 
 export const WorkspaceSettings: Component<WorkspaceSettingsProps> = (props) => {
+  const ctx = useDashboardContext();
   const [remoteConfig] = createResource(() => props.name, fetchConfig);
   const [localOverride, setLocalOverride] =
     createSignal<WorkspaceConfig | null>(null);
@@ -79,7 +64,7 @@ export const WorkspaceSettings: Component<WorkspaceSettingsProps> = (props) => {
     clearTimeout(saveTimer);
     const name = props.name;
     saveTimer = setTimeout(() => {
-      WorkspaceService.UpdateWorkspaceConfig(name, updated);
+      ctx.updateWorkspaceConfig(name, updated);
     }, DEBOUNCE_MS);
   };
 

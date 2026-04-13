@@ -7,15 +7,9 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-solid";
-import {
-  type Component,
-  createEffect,
-  createSignal,
-  For,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { type Component, createSignal, For, Show } from "solid-js";
 import { BranchNameInput } from "@/components/ui";
+import { useOutsideClick } from "@/hooks";
 import type { Workspace } from "@/types/types";
 import { useDashboardContext } from "../contexts";
 import { WorktreeCard } from "./WorktreeCard";
@@ -35,13 +29,7 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
 
   const name = () => props.workspace.name;
 
-  // Close menu on outside click
-  createEffect(() => {
-    if (!showMenu()) return;
-    const handler = () => setShowMenu(false);
-    document.addEventListener("click", handler);
-    onCleanup(() => document.removeEventListener("click", handler));
-  });
+  useOutsideClick(showMenu, () => setShowMenu(false));
 
   const worktreeNames = () =>
     (props.workspace.worktrees ?? []).map((wt) => wt.name);

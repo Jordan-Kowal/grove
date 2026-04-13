@@ -6,14 +6,9 @@ import {
   Play,
   Trash2,
 } from "lucide-solid";
-import {
-  type Component,
-  createEffect,
-  createSignal,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { type Component, createSignal, Show } from "solid-js";
 import { StatusBadge } from "@/components/ui";
+import { useOutsideClick } from "@/hooks";
 import { TaskStatus, TaskStep, type WorktreeInfo } from "@/types/types";
 import { useDashboardContext } from "../contexts";
 import { Action, QuickActionPanel } from "./QuickActionPanel";
@@ -59,13 +54,7 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
     !activeAction() &&
     (!task() || isFailed() || step() !== TaskStep.GIT_WORKTREE);
 
-  // Close menu on outside click
-  createEffect(() => {
-    if (!showMenu()) return;
-    const handler = () => setShowMenu(false);
-    document.addEventListener("click", handler);
-    onCleanup(() => document.removeEventListener("click", handler));
-  });
+  useOutsideClick(showMenu, () => setShowMenu(false));
 
   const handleClick = () => {
     if (isCardDisabled()) return;
