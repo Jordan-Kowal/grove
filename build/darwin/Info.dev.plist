@@ -4,11 +4,11 @@
         <key>CFBundlePackageType</key>
             <string>APPL</string>
         <key>CFBundleName</key>
-            <string>Grove</string>
+            <string>Grove Dev</string>
         <key>CFBundleExecutable</key>
             <string>Grove</string>
         <key>CFBundleIdentifier</key>
-            <string>app.jkdev.grove</string>
+            <string>app.jkdev.grove.dev</string>
         <key>CFBundleVersion</key>
             <string>0.1.2</string>
         <key>CFBundleShortVersionString</key>

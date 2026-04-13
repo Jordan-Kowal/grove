@@ -14,18 +14,8 @@
 - [ ] **Copy branch name**: One-click copy of branch name from worktree card context menu.
 - [ ] **Configurable "done" duration**: Let users configure how long the "done" status persists (currently hardcoded at 30 minutes). Options: instant dismiss, custom duration, persist until clicked.
 - [ ] **Improve logo design**
-
-## Code quality
-
-### Bugs
-
-- [ ] `scheduleDoneExpiry` timer callback re-acquires `s.mu` held during scheduling — can revert a `DismissDone` action (`monitor_service.go:411-431`). Move call to after `s.mu.Unlock()`.
-- [ ] `refreshClaude` reads `s.workspaces` without lock (`monitor_service.go:300-305`). Add `s.mu.RLock()`/`s.mu.RUnlock()` like `refreshGit` does.
-- [ ] `SetPreferences` doesn't validate `mode`/`sound` unlike `PlayPreview` — invalid values silently cause sounds to never play (`sound_service.go:53-58`).
-- [ ] Click-through on unfocused window: First click on the sidebar when unfocused only focuses the window, requiring a second click to trigger the action.
-- [ ] Allow running dev version while running the app (without conflict)
-- [ ] New version builds reset macOS Accessibility/Automation permissions — codesigning with a stable identity may fix this
-- [ ] Better handling of issues in settings/workspaces
+- [ ] **Click-through on unfocused window**: First click on the sidebar when unfocused only focuses the window, requiring a second click. Fix requires CGo + Objective-C to override `acceptsFirstMouse:` on the WKWebView via `NativeWindow()`.
+- [ ] **Accessibility permission notification**: When snap-to-edge fails due to missing Accessibility permission, show an inline notification/banner with a link to open System Settings (using `OpenAccessibilitySettings()`).
 
 ### Nice to have
 

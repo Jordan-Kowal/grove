@@ -50,11 +50,18 @@ func (s *SoundService) GetSounds() []string {
 }
 
 // SetPreferences updates sound preferences from the frontend.
-func (s *SoundService) SetPreferences(mode string, sound string) {
+func (s *SoundService) SetPreferences(mode string, sound string) error {
+	if !validMode(mode) {
+		return fmt.Errorf("unknown sound mode %q", mode)
+	}
+	if !validSound(sound) {
+		return fmt.Errorf("unknown sound %q", sound)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.mode = SoundMode(mode)
 	s.sound = sound
+	return nil
 }
 
 // PlayPreview plays a sound for the settings preview button.
@@ -119,6 +126,14 @@ func (s *SoundService) ensureCached(name string) (string, error) {
 		return "", fmt.Errorf("failed to cache sound: %w", err)
 	}
 	return cached, nil
+}
+
+func validMode(mode string) bool {
+	switch SoundMode(mode) {
+	case SoundModeNever, SoundModePermission, SoundModeAll:
+		return true
+	}
+	return false
 }
 
 func validSound(name string) bool {

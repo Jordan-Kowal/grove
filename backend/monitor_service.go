@@ -309,12 +309,14 @@ func (s *MonitorService) refreshClaude() {
 	now := time.Now()
 
 	// Collect all known worktree paths for subdirectory matching.
+	s.mu.RLock()
 	var worktreePaths []string
 	for _, ws := range s.workspaces {
 		for _, wt := range ws.Worktrees {
 			worktreePaths = append(worktreePaths, wt.Path)
 		}
 	}
+	s.mu.RUnlock()
 
 	// Derive effective status per session.
 	// "done" is downgraded to "idle" if: before boot, after dismiss, or expired (>30min).
