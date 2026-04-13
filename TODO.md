@@ -27,13 +27,6 @@
 - [ ] New version builds reset macOS Accessibility/Automation permissions — codesigning with a stable identity may fix this
 - [ ] Better handling of issues in settings/workspaces
 
-### Improvements
-
-- [ ] `WorkspaceSettings` calls `WorkspaceService.UpdateWorkspaceConfig` directly, bypassing `DashboardContext` and skipping `MonitorService.RefreshNow()` (`WorkspaceSettings.tsx:73`).
-- [ ] Duplicated `Section` component in `GeneralSettings.tsx` and `WorkspaceSettings.tsx` — extract to shared component.
-- [ ] Duplicated `createEffect` patterns: extract `useElapsedTimer` hook (used in `TaskStatusBar.tsx`, `ErrorLog.tsx`) and `useOutsideClick` hook (used in `BranchSelect.tsx`, `WorkspaceSection.tsx`, `WorktreeCard.tsx`).
-- [ ] Missing barrel re-exports in `src/types/index.ts` for `LogLine`, `WorktreeLogEvent`, `WailsEvent`.
-
 ### Nice to have
 
 - [ ] Auto-update: add checksum/signature verification to `curl | bash` update mechanism (`app_service.go`)

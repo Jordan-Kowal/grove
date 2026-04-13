@@ -4,9 +4,9 @@ import {
   createEffect,
   createSignal,
   For,
-  onCleanup,
   Show,
 } from "solid-js";
+import { useElapsedTimer } from "@/hooks";
 import { type LogLine, TaskStatus, TaskStep } from "@/types/types";
 import { parseAnsiToSegments } from "@/utils";
 import { useDashboardContext } from "../contexts";
@@ -61,7 +61,6 @@ export const ErrorLog: Component<ErrorLogProps> = (props) => {
   const ctx = useDashboardContext();
   let scrollRef: HTMLDivElement | undefined;
   const [autoScroll, setAutoScroll] = createSignal(true);
-  const [elapsed, setElapsed] = createSignal(0);
 
   const [workspaceName, worktreeName] = props.logKey.split("/", 2);
 
@@ -76,15 +75,7 @@ export const ErrorLog: Component<ErrorLogProps> = (props) => {
   const isFailed = () => status() === TaskStatus.FAILED;
   const isSuccess = () => status() === TaskStatus.SUCCESS;
 
-  // Elapsed timer for in-progress tasks
-  createEffect(() => {
-    if (!isInProgress() || !startedAt()) return;
-    const start = startedAt()!;
-    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
-    tick();
-    const interval = setInterval(tick, 1000);
-    onCleanup(() => clearInterval(interval));
-  });
+  const elapsed = useElapsedTimer(isInProgress, startedAt);
 
   // Auto-scroll to bottom when new lines arrive (after DOM paint)
   createEffect(() => {
