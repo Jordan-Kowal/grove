@@ -44,6 +44,7 @@ type MonitorService struct {
 	bootTime       time.Time               // app start time — done before this is treated as idle
 	dismissTimes   map[string]time.Time    // last card click per worktree path
 	prevAggregated map[string]ClaudeStatus // track previous aggregated status per worktree path
+	doneDuration   time.Duration           // how long "done" persists; 0 = instant, <0 = forever
 	gitBusy        sync.Mutex              // prevents overlapping git diff scans
 	readSessions   func() []groveSession   // injectable for testing; defaults to readGroveSessions
 }
@@ -63,6 +64,7 @@ func NewMonitorService(workspaceSvc *WorkspaceService, soundSvc *SoundService, t
 		bootTime:       time.Now(),
 		dismissTimes:   make(map[string]time.Time),
 		prevAggregated: make(map[string]ClaudeStatus),
+		doneDuration:   30 * time.Minute,
 	}
 	svc.readSessions = svc.readGroveSessions
 	return svc
@@ -319,7 +321,7 @@ func (s *MonitorService) refreshClaude() {
 	s.mu.RUnlock()
 
 	// Derive effective status per session.
-	// "done" is downgraded to "idle" if: before boot, after dismiss, or expired (>30min).
+	// "done" is downgraded to "idle" if: before boot, after dismiss, or expired.
 	type sessionResult struct {
 		path   string
 		status ClaudeStatus
@@ -333,9 +335,10 @@ func (s *MonitorService) refreshClaude() {
 
 		if status == ClaudeStatusDone {
 			dismissTime := s.dismissTimes[resolvedPath]
+			expired := s.doneDuration >= 0 && now.Sub(sess.ModTime) > s.doneDuration
 			if sess.ModTime.Before(s.bootTime) ||
 				dismissTime.After(sess.ModTime) ||
-				now.Sub(sess.ModTime) > doneDuration {
+				expired {
 				status = ClaudeStatusIdle
 			}
 		}
@@ -399,7 +402,17 @@ func (s *MonitorService) refreshClaude() {
 	}
 }
 
-const doneDuration = 30 * time.Minute
+// SetDoneDuration configures how long "done" persists.
+// 0 = instant dismiss, negative = persist until clicked.
+func (s *MonitorService) SetDoneDuration(minutes int) {
+	s.mu.Lock()
+	if minutes < 0 {
+		s.doneDuration = -1
+	} else {
+		s.doneDuration = time.Duration(minutes) * time.Minute
+	}
+	s.mu.Unlock()
+}
 
 // DismissDone records a dismiss click for the given worktree path,
 // causing all "done" sessions in that path to be treated as "idle".

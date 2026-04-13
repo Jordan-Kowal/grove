@@ -1,4 +1,6 @@
 import {
+  Check,
+  ClipboardCopy,
   EllipsisVertical,
   GitBranch,
   GitBranchPlus,
@@ -6,7 +8,7 @@ import {
   Play,
   Trash2,
 } from "lucide-solid";
-import { type Component, createSignal, Show } from "solid-js";
+import { type Component, createSignal, onCleanup, Show } from "solid-js";
 import { StatusBadge } from "@/components/ui";
 import { useOutsideClick } from "@/hooks";
 import { TaskStatus, TaskStep, type WorktreeInfo } from "@/types/types";
@@ -27,6 +29,19 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
   const ctx = useDashboardContext();
   const [showMenu, setShowMenu] = createSignal(false);
   const [activeAction, setActiveAction] = createSignal<Action | null>(null);
+  const [copied, setCopied] = createSignal(false);
+  let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(copiedTimer));
+
+  const copyBranch = () => {
+    navigator.clipboard.writeText(props.worktree.branch);
+    setCopied(true);
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => {
+      setCopied(false);
+      setShowMenu(false);
+    }, 1500);
+  };
 
   const key = () => `${props.workspaceName}/${props.worktree.name}`;
   const task = () => ctx.taskStatuses()[key()];
@@ -149,6 +164,24 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                     >
                       <GitBranchPlus size={12} />
                       Move to new branch
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      class="text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyBranch();
+                      }}
+                    >
+                      <Show
+                        when={copied()}
+                        fallback={<ClipboardCopy size={12} />}
+                      >
+                        <Check size={12} class="text-success" />
+                      </Show>
+                      {copied() ? "Copied!" : "Copy branch name"}
                     </button>
                   </li>
                   <Show when={props.hasSetupScript}>

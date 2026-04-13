@@ -156,6 +156,30 @@ export const GeneralSettings: Component = () => {
           </div>
         </Show>
 
+        <label class="block space-y-1">
+          <span class="text-xs font-medium opacity-60">
+            "Done" badge duration
+          </span>
+          <select
+            class="select select-bordered select-sm w-full text-xs"
+            value={settings().doneDuration}
+            onChange={(e) =>
+              updateSetting("doneDuration", Number(e.currentTarget.value))
+            }
+          >
+            <option value={0}>Instant dismiss</option>
+            <option value={1}>1 minute</option>
+            <option value={2}>2 minutes</option>
+            <option value={3}>3 minutes</option>
+            <option value={5}>5 minutes</option>
+            <option value={10}>10 minutes</option>
+            <option value={15}>15 minutes</option>
+            <option value={30}>30 minutes</option>
+            <option value={60}>60 minutes</option>
+            <option value={-1}>Until clicked</option>
+          </select>
+        </label>
+
         <label class="flex items-center justify-between cursor-pointer">
           <span class="text-xs font-medium opacity-60">Show menu bar icon</span>
           <input

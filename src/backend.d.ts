@@ -10,6 +10,7 @@ declare module "@backend" {
     GetWorkspaces(): Promise<Workspace[]>;
     RefreshNow(): Promise<void>;
     DismissDone(path: string): Promise<void>;
+    SetDoneDuration(minutes: number): Promise<void>;
   };
 
   export const WorkspaceService: {

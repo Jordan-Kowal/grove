@@ -1,4 +1,9 @@
-import { SnapService, SoundService, TrayService } from "@backend";
+import {
+  MonitorService,
+  SnapService,
+  SoundService,
+  TrayService,
+} from "@backend";
 import { Window } from "@wailsio/runtime";
 import { createMemo, type JSX, useContext } from "solid-js";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -30,6 +35,7 @@ const syncToBackend = (s: Settings) => {
   document.documentElement.setAttribute("data-theme", s.theme);
   Window.SetAlwaysOnTop(s.alwaysOnTop);
   SoundService.SetPreferences(s.soundMode, s.soundName);
+  MonitorService.SetDoneDuration(s.doneDuration);
   SnapService.SetEnabled(s.snapToEdges);
   if (s.snapToEdges) SnapService.SnapNow();
   TrayService.SetEnabled(s.systemTrayEnabled);
