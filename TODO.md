@@ -38,7 +38,3 @@
 
 - [ ] Auto-update: add checksum/signature verification to `curl | bash` update mechanism (`app_service.go`)
 - [ ] Pin GitHub Actions to commit SHAs instead of mutable tags in `build-and-release.yml` and `code-quality.yml` (supply chain hardening for release pipeline).
-### Tests
-
-- [ ] Add tests for `resolveWorktreePath` (pure function, easy win).
-- [ ] Add tests for `refreshClaude`/`DismissDone`/`scheduleDoneExpiry` state machine (requires extracting `soundSvc`/`traySvc` behind interfaces and mocking Wails events).
