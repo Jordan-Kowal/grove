@@ -59,11 +59,13 @@ const AnsiLine: Component<{ line: LogLine; showTimestamp: boolean }> = (
 
 export const ErrorLog: Component<ErrorLogProps> = (props) => {
   const ctx = useDashboardContext();
-  let scrollRef: HTMLDivElement | undefined;
+  const [scrollRef, setScrollRef] = createSignal<HTMLDivElement>();
   const [autoScroll, setAutoScroll] = createSignal(true);
   const [elapsed, setElapsed] = createSignal(0);
 
-  const [workspaceName, worktreeName] = props.logKey.split("/", 2);
+  const parts = props.logKey.split("/", 2);
+  const workspaceName = parts[0];
+  const worktreeName = parts[1] ?? "";
 
   const lines = () => ctx.getScriptLogs(workspaceName, worktreeName);
   const task = () => ctx.taskStatuses()[props.logKey];
@@ -86,19 +88,19 @@ export const ErrorLog: Component<ErrorLogProps> = (props) => {
     onCleanup(() => clearInterval(interval));
   });
 
-  // Auto-scroll to bottom when new lines arrive (after DOM paint)
+  // Auto-scroll to bottom when new lines arrive
   createEffect(() => {
     lines();
-    if (autoScroll() && scrollRef) {
-      queueMicrotask(() => {
-        if (scrollRef) scrollRef.scrollTop = scrollRef.scrollHeight;
-      });
+    const el = scrollRef();
+    if (autoScroll() && el) {
+      el.scrollTop = el.scrollHeight;
     }
   });
 
   const handleScroll = () => {
-    if (!scrollRef) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollRef;
+    const el = scrollRef();
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
     setAutoScroll(scrollHeight - scrollTop - clientHeight < 40);
   };
 
@@ -175,7 +177,7 @@ export const ErrorLog: Component<ErrorLogProps> = (props) => {
 
       {/* Log content */}
       <div
-        ref={scrollRef}
+        ref={setScrollRef}
         class="flex-1 overflow-auto p-4"
         onScroll={handleScroll}
       >
