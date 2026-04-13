@@ -38,9 +38,6 @@
 
 - [ ] Auto-update: add checksum/signature verification to `curl | bash` update mechanism (`app_service.go`)
 - [ ] Pin GitHub Actions to commit SHAs instead of mutable tags in `build-and-release.yml` and `code-quality.yml` (supply chain hardening for release pipeline).
-- [x] Guard `ErrorLog.tsx:66` split destructuring — add fallback for `worktreeName` when `logKey` has no `/`.
-- [x] Replace `let scrollRef` with signal-based ref in `ErrorLog.tsx` auto-scroll `createEffect` — current approach works by `queueMicrotask` timing coincidence.
-
 ### Tests
 
 - [ ] Add tests for `resolveWorktreePath` (pure function, easy win).
