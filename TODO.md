@@ -11,7 +11,6 @@
 - [ ] **Claude session count**: Show the number of ongoing Claude Code sessions per worktree (and/or in tray icon badge).
 - [ ] **Toast notifications**: Transient toasts when Claude needs attention or finishes — shows worktree name and action needed. Clicking the toast navigates to / highlights the relevant worktree card.
 - [ ] **Improve logo design**
-- [ ] **Click-through on unfocused window**: First click on the sidebar when unfocused only focuses the window, requiring a second click. Fix requires CGo + Objective-C to override `acceptsFirstMouse:` on the WKWebView via `NativeWindow()`.
 - [ ] **Accessibility permission notification**: When snap-to-edge fails due to missing Accessibility permission, show an inline notification/banner with a link to open System Settings (using `OpenAccessibilitySettings()`).
 
 ### Nice to have

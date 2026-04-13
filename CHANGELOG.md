@@ -19,6 +19,7 @@
 - 🐞 Fix data race in Claude session polling
 - 🐞 Workspace config changes (base branch, scripts) now refresh the dashboard immediately
 - 🐞 Sound preference validation — invalid values are rejected instead of silently accepted
+- 🐞 Fix click-through on unfocused window — first click now interacts immediately instead of only focusing the window
 
 ## 0.1.2 - 2026-03-30
 
