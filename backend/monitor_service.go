@@ -209,9 +209,10 @@ func (s *MonitorService) refreshWorkspaces() {
 		}
 		worktrees := s.workspaceSvc.scanWorktreeStructure(name)
 		workspaces = append(workspaces, Workspace{
-			Name:      name,
-			Config:    config,
-			Worktrees: worktrees,
+			Name:         name,
+			Config:       config,
+			MainWorktree: WorktreeInfo{Name: MainWorktreeName, Path: config.RepoPath},
+			Worktrees:    worktrees,
 		})
 	}
 
@@ -219,20 +220,24 @@ func (s *MonitorService) refreshWorkspaces() {
 	s.mu.Lock()
 	prevByPath := make(map[string]WorktreeInfo)
 	for _, ws := range s.workspaces {
+		prevByPath[ws.MainWorktree.Path] = ws.MainWorktree
 		for _, wt := range ws.Worktrees {
 			prevByPath[wt.Path] = wt
 		}
 	}
+	restorePrev := func(wt *WorktreeInfo) {
+		if old, ok := prevByPath[wt.Path]; ok {
+			wt.Branch = old.Branch
+			wt.FilesChanged = old.FilesChanged
+			wt.Insertions = old.Insertions
+			wt.Deletions = old.Deletions
+			wt.ClaudeStatus = old.ClaudeStatus
+		}
+	}
 	for i := range workspaces {
+		restorePrev(&workspaces[i].MainWorktree)
 		for j := range workspaces[i].Worktrees {
-			wt := &workspaces[i].Worktrees[j]
-			if old, ok := prevByPath[wt.Path]; ok {
-				wt.Branch = old.Branch
-				wt.FilesChanged = old.FilesChanged
-				wt.Insertions = old.Insertions
-				wt.Deletions = old.Deletions
-				wt.ClaudeStatus = old.ClaudeStatus
-			}
+			restorePrev(&workspaces[i].Worktrees[j])
 		}
 	}
 	s.workspaces = workspaces
@@ -248,6 +253,7 @@ func (s *MonitorService) refreshGit() {
 	s.mu.RLock()
 	var paths []string
 	for _, ws := range s.workspaces {
+		paths = append(paths, ws.MainWorktree.Path)
 		for _, wt := range ws.Worktrees {
 			paths = append(paths, wt.Path)
 		}
@@ -281,17 +287,21 @@ func (s *MonitorService) refreshGit() {
 		dataByPath[p] = results[i]
 	}
 
+	applyGit := func(wt *WorktreeInfo) {
+		if data, ok := dataByPath[wt.Path]; ok {
+			wt.Branch = data.branch
+			wt.FilesChanged = data.files
+			wt.Insertions = data.ins
+			wt.Deletions = data.dels
+		}
+	}
+
 	// Apply results under lock
 	s.mu.Lock()
 	for i := range s.workspaces {
+		applyGit(&s.workspaces[i].MainWorktree)
 		for j := range s.workspaces[i].Worktrees {
-			wt := &s.workspaces[i].Worktrees[j]
-			if data, ok := dataByPath[wt.Path]; ok {
-				wt.Branch = data.branch
-				wt.FilesChanged = data.files
-				wt.Insertions = data.ins
-				wt.Deletions = data.dels
-			}
+			applyGit(&s.workspaces[i].Worktrees[j])
 		}
 	}
 	s.mu.Unlock()
@@ -310,13 +320,15 @@ func (s *MonitorService) refreshClaude() {
 	sessions := s.readSessions()
 	now := time.Now()
 
-	// Collect all known worktree paths for subdirectory matching.
+	// Collect all known paths (worktrees + main repos) for subdirectory matching.
+	// Worktree paths are listed first so they match before the parent main repo.
 	s.mu.RLock()
 	var worktreePaths []string
 	for _, ws := range s.workspaces {
 		for _, wt := range ws.Worktrees {
 			worktreePaths = append(worktreePaths, wt.Path)
 		}
+		worktreePaths = append(worktreePaths, ws.MainWorktree.Path)
 	}
 	s.mu.RUnlock()
 
@@ -359,32 +371,37 @@ func (s *MonitorService) refreshClaude() {
 		}
 	}
 
-	// Apply aggregated status to worktrees and detect transitions for sounds/tray.
+	// Apply aggregated status to worktrees (and main worktree) and detect transitions for sounds/tray.
 	s.mu.Lock()
 	doneTransition := false
 	attentionTransition := false
 	needsAttention := false
-	for i := range s.workspaces {
-		for j := range s.workspaces[i].Worktrees {
-			wt := &s.workspaces[i].Worktrees[j]
-			newStatus := ClaudeStatusIdle
-			if status, ok := statusByPath[wt.Path]; ok {
-				newStatus = status
-			}
-			prevAgg := s.prevAggregated[wt.Path]
 
-			if newStatus == ClaudeStatusDone && prevAgg != ClaudeStatusDone {
-				doneTransition = true
-			}
-			if (newStatus == ClaudeStatusPermission || newStatus == ClaudeStatusQuestion) &&
-				prevAgg != ClaudeStatusPermission && prevAgg != ClaudeStatusQuestion {
-				attentionTransition = true
-			}
-			if newStatus == ClaudeStatusPermission || newStatus == ClaudeStatusQuestion {
-				needsAttention = true
-			}
-			s.prevAggregated[wt.Path] = newStatus
-			wt.ClaudeStatus = newStatus
+	applyStatus := func(wt *WorktreeInfo) {
+		newStatus := ClaudeStatusIdle
+		if status, ok := statusByPath[wt.Path]; ok {
+			newStatus = status
+		}
+		prevAgg := s.prevAggregated[wt.Path]
+
+		if newStatus == ClaudeStatusDone && prevAgg != ClaudeStatusDone {
+			doneTransition = true
+		}
+		if (newStatus == ClaudeStatusPermission || newStatus == ClaudeStatusQuestion) &&
+			prevAgg != ClaudeStatusPermission && prevAgg != ClaudeStatusQuestion {
+			attentionTransition = true
+		}
+		if newStatus == ClaudeStatusPermission || newStatus == ClaudeStatusQuestion {
+			needsAttention = true
+		}
+		s.prevAggregated[wt.Path] = newStatus
+		wt.ClaudeStatus = newStatus
+	}
+
+	for i := range s.workspaces {
+		applyStatus(&s.workspaces[i].MainWorktree)
+		for j := range s.workspaces[i].Worktrees {
+			applyStatus(&s.workspaces[i].Worktrees[j])
 		}
 	}
 	s.mu.Unlock()

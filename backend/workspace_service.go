@@ -51,6 +51,11 @@ type WorktreeTaskEvent struct {
 
 const unknownBranch = "unknown"
 
+// MainWorktreeName is the sentinel worktree name used for operations on the
+// main repo checkout (as opposed to a git worktree). It is deliberately
+// invalid per validateName so it can never collide with real worktree names.
+const MainWorktreeName = "."
+
 var validNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9\-_]*$`)
 var validBranchPattern = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-_/]*[a-zA-Z0-9\-_])?$`)
 
@@ -87,6 +92,23 @@ func validateBranchName(name string) error {
 		return fmt.Errorf("branch name %q contains invalid characters (only letters, numbers, hyphens, underscores, slashes)", name)
 	}
 	return nil
+}
+
+// resolveGitDir returns the filesystem path for a git operation.
+// For the main repo (worktreeName == MainWorktreeName), it returns config.RepoPath.
+// For regular worktrees, it returns the worktree directory under groveDir.
+func (s *WorkspaceService) resolveGitDir(workspaceName, worktreeName string) (string, error) {
+	if worktreeName == MainWorktreeName {
+		config := s.readConfig(workspaceName)
+		if config.RepoPath == "" {
+			return "", fmt.Errorf("workspace %q has no repo path configured", workspaceName)
+		}
+		return config.RepoPath, nil
+	}
+	if validateName(workspaceName) != nil || validateName(worktreeName) != nil {
+		return "", fmt.Errorf("invalid name")
+	}
+	return filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName), nil
 }
 
 // fetchRemoteIfNeeded fetches the remote when ref looks like a remote tracking branch (e.g. "origin/main").
@@ -362,12 +384,12 @@ func (s *WorkspaceService) ListBranches(workspaceName string) ([]BranchInfo, err
 
 // RebaseWorktree rebases the worktree's branch onto the given target branch.
 func (s *WorkspaceService) RebaseWorktree(workspaceName, worktreeName, targetBranch string) {
-	if validateName(workspaceName) != nil || validateName(worktreeName) != nil {
-		s.emitTask(workspaceName, worktreeName, StepRebase, StatusFailed, "invalid name")
+	worktreePath, err := s.resolveGitDir(workspaceName, worktreeName)
+	if err != nil {
+		s.emitTask(workspaceName, worktreeName, StepRebase, StatusFailed, err.Error())
 		return
 	}
 	go func() {
-		worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
 		s.emitTask(workspaceName, worktreeName, StepRebase, StatusInProgress, "")
 		// Fetch remote so the target ref is up to date
 		if err := fetchRemoteIfNeeded(worktreePath, targetBranch); err != nil {
@@ -388,12 +410,12 @@ func (s *WorkspaceService) RebaseWorktree(workspaceName, worktreeName, targetBra
 
 // CheckoutBranch checks out an existing branch in the worktree.
 func (s *WorkspaceService) CheckoutBranch(workspaceName, worktreeName, branch string) {
-	if validateName(workspaceName) != nil || validateName(worktreeName) != nil {
-		s.emitTask(workspaceName, worktreeName, StepCheckout, StatusFailed, "invalid name")
+	worktreePath, err := s.resolveGitDir(workspaceName, worktreeName)
+	if err != nil {
+		s.emitTask(workspaceName, worktreeName, StepCheckout, StatusFailed, err.Error())
 		return
 	}
 	go func() {
-		worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
 		s.emitTask(workspaceName, worktreeName, StepCheckout, StatusInProgress, "")
 		// Fetch remote so the branch ref is up to date
 		if err := fetchRemoteIfNeeded(worktreePath, branch); err != nil {
@@ -412,8 +434,13 @@ func (s *WorkspaceService) CheckoutBranch(workspaceName, worktreeName, branch st
 
 // NewBranchOnWorktree creates a fresh branch from baseBranch on the worktree.
 func (s *WorkspaceService) NewBranchOnWorktree(workspaceName, worktreeName, branchName string) {
-	if validateName(workspaceName) != nil || validateName(worktreeName) != nil || validateBranchName(branchName) != nil {
-		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, "invalid name")
+	if validateBranchName(branchName) != nil {
+		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, "invalid branch name")
+		return
+	}
+	worktreePath, err := s.resolveGitDir(workspaceName, worktreeName)
+	if err != nil {
+		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, err.Error())
 		return
 	}
 	go func() {
@@ -422,7 +449,6 @@ func (s *WorkspaceService) NewBranchOnWorktree(workspaceName, worktreeName, bran
 		if baseBranch == "" {
 			baseBranch = "origin/main"
 		}
-		worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
 		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusInProgress, "")
 		// Fetch remote so the base branch ref is up to date
 		if err := fetchRemoteIfNeeded(worktreePath, baseBranch); err != nil {
