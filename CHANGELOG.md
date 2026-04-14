@@ -8,7 +8,7 @@
 - 🔧 Others
 - 💥 Breaking
 
-## 0.2.0 - TBD
+## 0.2.0 - 2026-04-14
 
 - 🚀 Main repo is now visible as a card and tracked like any worktree
 - 🚀 Clicking on a card when the grove app is not focused is now correctly registered
