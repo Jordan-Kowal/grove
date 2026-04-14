@@ -359,8 +359,9 @@ func (s *MonitorService) refreshClaude() {
 	}
 	s.mu.RUnlock()
 
-	// Aggregate per-worktree using priority: Blocked > Done > Working > Idle.
+	// Aggregate per-worktree: highest-priority status + per-status session counts.
 	statusByPath := make(map[string]ClaudeStatus)
+	countsByPath := make(map[string]map[ClaudeStatus]int)
 	for _, r := range results {
 		if existing, ok := statusByPath[r.path]; ok {
 			if claudeStatusPriority(r.status) > claudeStatusPriority(existing) {
@@ -369,6 +370,10 @@ func (s *MonitorService) refreshClaude() {
 		} else {
 			statusByPath[r.path] = r.status
 		}
+		if countsByPath[r.path] == nil {
+			countsByPath[r.path] = make(map[ClaudeStatus]int)
+		}
+		countsByPath[r.path][r.status]++
 	}
 
 	// Apply aggregated status to worktrees (and main worktree) and detect transitions for sounds/tray.
@@ -396,6 +401,7 @@ func (s *MonitorService) refreshClaude() {
 		}
 		s.prevAggregated[wt.Path] = newStatus
 		wt.ClaudeStatus = newStatus
+		wt.ClaudeSessionCounts = countsByPath[wt.Path]
 	}
 
 	for i := range s.workspaces {

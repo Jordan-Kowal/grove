@@ -30,11 +30,12 @@ func claudeStatusPriority(s ClaudeStatus) int {
 
 // WorktreeInfo contains the status of a single git worktree.
 type WorktreeInfo struct {
-	Name         string       `json:"name"`
-	Path         string       `json:"path"`
-	Branch       string       `json:"branch"`
-	FilesChanged int          `json:"filesChanged"`
-	Insertions   int          `json:"insertions"`
-	Deletions    int          `json:"deletions"`
-	ClaudeStatus ClaudeStatus `json:"claudeStatus"`
+	Name                string               `json:"name"`
+	Path                string               `json:"path"`
+	Branch              string               `json:"branch"`
+	FilesChanged        int                  `json:"filesChanged"`
+	Insertions          int                  `json:"insertions"`
+	Deletions           int                  `json:"deletions"`
+	ClaudeStatus        ClaudeStatus         `json:"claudeStatus"`
+	ClaudeSessionCounts map[ClaudeStatus]int `json:"claudeSessionCounts"`
 }

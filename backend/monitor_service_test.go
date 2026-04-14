@@ -180,6 +180,51 @@ func TestRefreshClaude_Aggregation_HighestPriorityWins(t *testing.T) {
 	}
 }
 
+func TestRefreshClaude_SessionCounts_PopulatedPerStatus(t *testing.T) {
+	ws := []Workspace{{Worktrees: []WorktreeInfo{{Path: "/wt"}}}}
+	sessions := func() []groveSession {
+		now := time.Now()
+		return []groveSession{
+			{State: "working", CWD: "/wt", ModTime: now},
+			{State: "working", CWD: "/wt", ModTime: now},
+			{State: "permission", CWD: "/wt", ModTime: now},
+		}
+	}
+	svc, _, _ := newTestMonitor(ws, sessions)
+
+	svc.refreshClaude()
+
+	svc.mu.RLock()
+	counts := svc.workspaces[0].Worktrees[0].ClaudeSessionCounts
+	svc.mu.RUnlock()
+
+	if counts[ClaudeStatusWorking] != 2 {
+		t.Errorf("working count = %d, want 2", counts[ClaudeStatusWorking])
+	}
+	if counts[ClaudeStatusPermission] != 1 {
+		t.Errorf("permission count = %d, want 1", counts[ClaudeStatusPermission])
+	}
+	if counts[ClaudeStatusIdle] != 0 {
+		t.Errorf("idle count = %d, want 0", counts[ClaudeStatusIdle])
+	}
+}
+
+func TestRefreshClaude_SessionCounts_NilWhenNoSessions(t *testing.T) {
+	ws := []Workspace{{Worktrees: []WorktreeInfo{{Path: "/wt"}}}}
+	sessions := func() []groveSession { return nil }
+	svc, _, _ := newTestMonitor(ws, sessions)
+
+	svc.refreshClaude()
+
+	svc.mu.RLock()
+	counts := svc.workspaces[0].Worktrees[0].ClaudeSessionCounts
+	svc.mu.RUnlock()
+
+	if counts != nil {
+		t.Errorf("expected nil session counts when no sessions, got %v", counts)
+	}
+}
+
 func TestRefreshClaude_NoTransitionSound_OnRepeatStatus(t *testing.T) {
 	ws := []Workspace{{Worktrees: []WorktreeInfo{{Path: "/wt"}}}}
 	sessions := func() []groveSession {

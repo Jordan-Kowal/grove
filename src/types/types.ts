@@ -22,6 +22,7 @@ export type WorktreeInfo = {
   insertions: number;
   deletions: number;
   claudeStatus: ClaudeStatus;
+  claudeSessionCounts: Partial<Record<ClaudeStatus, number>>;
 };
 
 export type Workspace = {

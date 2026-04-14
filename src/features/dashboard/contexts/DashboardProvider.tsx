@@ -190,6 +190,7 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
                 insertions: 0,
                 deletions: 0,
                 claudeStatus: ClaudeStatus.IDLE,
+                claudeSessionCounts: {},
               },
             ],
           };

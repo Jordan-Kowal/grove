@@ -15,6 +15,7 @@
 - 🚀 "Remove all worktrees" bulk action in workspace context menu
 - ✨ Copy branch name from worktree card context menu
 - ✨ All 35 built-in DaisyUI themes now available in settings
+- ✨ Session count badge and hover breakdown when multiple Claude sessions run in the same worktree
 - ✨ Configurable "done" badge duration in the settings
 - ✨ Claude hook settings auto-update on app launch when commands change
 - 🐞 "Done" status now surfaces above "working" when multiple sessions run in the same worktree

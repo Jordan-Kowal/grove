@@ -8,10 +8,21 @@ import {
   Play,
   Trash2,
 } from "lucide-solid";
-import { type Component, createSignal, onCleanup, Show } from "solid-js";
+import {
+  type Component,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { StatusBadge } from "@/components/ui";
 import { useOutsideClick } from "@/hooks";
-import { TaskStatus, TaskStep, type WorktreeInfo } from "@/types/types";
+import {
+  ClaudeStatus,
+  TaskStatus,
+  TaskStep,
+  type WorktreeInfo,
+} from "@/types/types";
 import { useDashboardContext } from "../contexts";
 import { Action, QuickActionPanel } from "./QuickActionPanel";
 import { TaskStatusBar } from "./TaskStatusBar";
@@ -52,6 +63,12 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
   const step = () => task()?.step;
   const status = () => task()?.status;
   const hasDiff = () => props.worktree.filesChanged > 0;
+  const sessionCount = createMemo(() => {
+    const counts = props.worktree.claudeSessionCounts;
+    if (!counts) return 0;
+    return Object.values(counts).reduce((sum, n) => sum + (n ?? 0), 0);
+  });
+  const isActive = () => props.worktree.claudeStatus !== ClaudeStatus.IDLE;
 
   const isInProgress = () => status() === TaskStatus.IN_PROGRESS;
   const isFailed = () => status() === TaskStatus.FAILED;
@@ -92,30 +109,50 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
           onClick={handleClick}
           disabled={isCardDisabled()}
         >
-          <div class="flex items-center gap-1.5">
-            <StatusBadge status={props.worktree.claudeStatus} />
-            <span class="text-xs font-medium truncate">
-              {props.isMainRepo ? props.workspaceName : props.worktree.name}
-            </span>
-            <Show when={props.isMainRepo}>
-              <span class="badge badge-xs badge-primary text-[9px] shrink-0">
-                root
-              </span>
-            </Show>
-          </div>
-          <Show when={props.worktree.branch}>
-            <div class="flex items-center justify-between pl-4.5">
-              <span class="text-[10px] opacity-40 truncate font-mono">
-                {props.worktree.branch}
-              </span>
-              <Show when={hasDiff()}>
-                <span class="text-[10px] opacity-40 shrink-0 ml-1 font-mono">
-                  <span class="text-success">+{props.worktree.insertions}</span>{" "}
-                  <span class="text-error">-{props.worktree.deletions}</span>
+          <div class="flex gap-1.5">
+            {/* Left column: status dot + session count */}
+            <div class="flex flex-col items-center shrink-0 w-3">
+              <StatusBadge
+                status={props.worktree.claudeStatus}
+                sessionCounts={props.worktree.claudeSessionCounts}
+              />
+              <Show when={isActive() && sessionCount() > 1}>
+                <span class="text-[8px] font-bold opacity-50 leading-tight mt-0.5">
+                  {sessionCount()}
                 </span>
               </Show>
             </div>
-          </Show>
+            {/* Right column: name + branch */}
+            <div class="flex flex-col min-w-0 flex-1">
+              <div class="flex items-center gap-1">
+                <span class="text-xs font-medium truncate">
+                  {props.isMainRepo ? props.workspaceName : props.worktree.name}
+                </span>
+                <Show when={props.isMainRepo}>
+                  <span class="badge badge-xs badge-primary text-[9px] shrink-0">
+                    root
+                  </span>
+                </Show>
+              </div>
+              <Show when={props.worktree.branch}>
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] opacity-40 truncate font-mono">
+                    {props.worktree.branch}
+                  </span>
+                  <Show when={hasDiff()}>
+                    <span class="text-[10px] opacity-40 shrink-0 ml-1 font-mono">
+                      <span class="text-success">
+                        +{props.worktree.insertions}
+                      </span>{" "}
+                      <span class="text-error">
+                        -{props.worktree.deletions}
+                      </span>
+                    </span>
+                  </Show>
+                </div>
+              </Show>
+            </div>
+          </div>
         </button>
 
         {/* Menu */}
