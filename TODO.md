@@ -2,14 +2,9 @@
 
 ## Feature ideas
 
-- [ ] **Workspace filter**: Dropdown/select per workspace to filter worktrees (not persisted across sessions)
-- [ ] **Keyboard shortcuts**: Global hotkeys for common actions (toggle visibility, create worktree, open in editor, navigate worktrees, dismiss notifications). User-configurable bindings.
 - [ ] **Workspace reordering**: Drag-and-drop to reorder workspaces. Requires activation mode with drag anchors on the side. Persisted order — must handle missing/new workspaces gracefully.
-- [ ] **Bulk workspace actions**: Add "Remove all worktrees" and "Rebase all worktrees" to the workspace `...` menu.
 - [ ] **Stale worktree detection**: Highlight worktrees whose branch is behind `origin/main` by many commits or hasn't been updated in N days. Configurable threshold.
-- [ ] **More themes**: Expose additional DaisyUI themes beyond Nord and Forest. Test for sidebar compatibility at 250px.
 - [ ] **Claude session count**: Show the number of ongoing Claude Code sessions per worktree (and/or in tray icon badge).
-- [ ] **Toast notifications**: Transient toasts when Claude needs attention or finishes — shows worktree name and action needed. Clicking the toast navigates to / highlights the relevant worktree card.
 - [ ] **Accessibility permission notification**: When snap-to-edge fails due to missing Accessibility permission, show an inline notification/banner with a link to open System Settings (using `OpenAccessibilitySettings()`).
 
 ### Nice to have

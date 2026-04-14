@@ -1,9 +1,44 @@
 import { createContext } from "solid-js";
 
-export enum Theme {
-  NORD = "nord",
-  FOREST = "forest",
-}
+export const THEMES = [
+  "abyss",
+  "acid",
+  "aqua",
+  "autumn",
+  "black",
+  "bumblebee",
+  "business",
+  "caramellatte",
+  "cmyk",
+  "coffee",
+  "corporate",
+  "cupcake",
+  "cyberpunk",
+  "dark",
+  "dim",
+  "dracula",
+  "emerald",
+  "fantasy",
+  "forest",
+  "garden",
+  "halloween",
+  "lemonade",
+  "light",
+  "lofi",
+  "luxury",
+  "night",
+  "nord",
+  "pastel",
+  "retro",
+  "silk",
+  "sunset",
+  "synthwave",
+  "valentine",
+  "winter",
+  "wireframe",
+] as const;
+
+export type Theme = (typeof THEMES)[number];
 
 export type Settings = {
   theme: Theme;
@@ -17,7 +52,7 @@ export type Settings = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: Theme.FOREST,
+  theme: "forest",
   alwaysOnTop: true,
   snapToEdges: true,
   soundMode: "all",

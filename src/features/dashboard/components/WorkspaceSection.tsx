@@ -25,8 +25,10 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
   const [showAddInput, setShowAddInput] = createSignal(false);
   const [confirmRemove, setConfirmRemove] = createSignal(false);
   const [confirmSync, setConfirmSync] = createSignal(false);
+  const [confirmRemoveAll, setConfirmRemoveAll] = createSignal(false);
 
   const name = () => props.workspace.name;
+  const hasWorktrees = () => (props.workspace.worktrees?.length ?? 0) > 0;
 
   useOutsideClick(showMenu, () => setShowMenu(false));
 
@@ -91,6 +93,21 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
                       Sync main checkout
                     </button>
                   </li>
+                  <Show when={hasWorktrees()}>
+                    <li>
+                      <button
+                        type="button"
+                        class="text-error text-xs"
+                        onClick={() => {
+                          setShowMenu(false);
+                          setConfirmRemoveAll(true);
+                        }}
+                      >
+                        <Trash2 size={12} />
+                        Remove all worktrees
+                      </button>
+                    </li>
+                  </Show>
                   <li>
                     <button
                       type="button"
@@ -155,6 +172,32 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
             type="button"
             class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] opacity-50 hover:opacity-100"
             onClick={() => setConfirmRemove(false)}
+          >
+            No
+          </button>
+        </div>
+      </Show>
+
+      {/* Remove all worktrees confirmation */}
+      <Show when={confirmRemoveAll()}>
+        <div class="flex items-center gap-1 px-2 py-1">
+          <span class="text-[10px] text-warning flex-1">
+            Remove all worktrees?
+          </span>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] text-error opacity-70 hover:opacity-100"
+            onClick={() => {
+              setConfirmRemoveAll(false);
+              ctx.removeAllWorktrees(name());
+            }}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0 text-[10px] opacity-50 hover:opacity-100"
+            onClick={() => setConfirmRemoveAll(false)}
           >
             No
           </button>

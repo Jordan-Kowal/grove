@@ -18,7 +18,7 @@ import {
   Show,
 } from "solid-js";
 import { Section } from "@/components/ui";
-import { Theme, useSettingsContext } from "@/contexts";
+import { THEMES, type Theme, useSettingsContext } from "@/contexts";
 import { VersionStatus } from "./VersionStatus";
 
 export const GeneralSettings: Component = () => {
@@ -66,8 +66,13 @@ export const GeneralSettings: Component = () => {
               updateSetting("theme", e.currentTarget.value as Theme)
             }
           >
-            <option value={Theme.NORD}>Nord</option>
-            <option value={Theme.FOREST}>Forest</option>
+            <For each={THEMES}>
+              {(theme) => (
+                <option value={theme}>
+                  {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                </option>
+              )}
+            </For>
           </select>
         </label>
 

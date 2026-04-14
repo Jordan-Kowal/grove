@@ -379,6 +379,14 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     }
   };
 
+  const removeAllWorktrees = (workspaceName: string) => {
+    const ws = workspaces.find((w) => w.name === workspaceName);
+    if (!ws) return;
+    for (const wt of ws.worktrees ?? []) {
+      confirmDelete(workspaceName, wt.name);
+    }
+  };
+
   const contextValue: DashboardContextProps = {
     workspaces,
     taskStatuses,
@@ -403,6 +411,7 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     focusEditor,
     updateWorkspaceConfig,
     syncMainCheckout,
+    removeAllWorktrees,
   };
 
   return (

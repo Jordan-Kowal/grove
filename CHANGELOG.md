@@ -12,7 +12,9 @@
 
 - 🚀 Main repo is now visible as a card and tracked like any worktree
 - 🚀 Clicking on a card when the grove app is not focused is now correctly registered
+- 🚀 "Remove all worktrees" bulk action in workspace context menu
 - ✨ Copy branch name from worktree card context menu
+- ✨ All 35 built-in DaisyUI themes now available in settings
 - ✨ Configurable "done" badge duration in the settings
 - ✨ Claude hook settings auto-update on app launch when commands change
 - 🐞 "Done" status now surfaces above "working" when multiple sessions run in the same worktree
