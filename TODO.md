@@ -10,10 +10,10 @@
 - [ ] **More themes**: Expose additional DaisyUI themes beyond Nord and Forest. Test for sidebar compatibility at 250px.
 - [ ] **Claude session count**: Show the number of ongoing Claude Code sessions per worktree (and/or in tray icon badge).
 - [ ] **Toast notifications**: Transient toasts when Claude needs attention or finishes — shows worktree name and action needed. Clicking the toast navigates to / highlights the relevant worktree card.
-- [ ] **Improve logo design**
 - [ ] **Accessibility permission notification**: When snap-to-edge fails due to missing Accessibility permission, show an inline notification/banner with a link to open System Settings (using `OpenAccessibilitySettings()`).
 
 ### Nice to have
 
 - [ ] Auto-update: add checksum/signature verification to `curl | bash` update mechanism (`app_service.go`)
 - [ ] Pin GitHub Actions to commit SHAs instead of mutable tags in `build-and-release.yml` and `code-quality.yml` (supply chain hardening for release pipeline).
+- [ ] **Improve logo design**

@@ -2,7 +2,6 @@ import {
   Check,
   ClipboardCopy,
   EllipsisVertical,
-  FolderGit,
   GitBranch,
   GitBranchPlus,
   GitMerge,
@@ -99,7 +98,9 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
               {props.isMainRepo ? props.workspaceName : props.worktree.name}
             </span>
             <Show when={props.isMainRepo}>
-              <FolderGit size={10} class="opacity-40 shrink-0" />
+              <span class="badge badge-xs badge-primary text-[9px] shrink-0">
+                root
+              </span>
             </Show>
           </div>
           <Show when={props.worktree.branch}>
