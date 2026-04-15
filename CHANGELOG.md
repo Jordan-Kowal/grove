@@ -8,7 +8,7 @@
 - 🔧 Others
 - 💥 Breaking
 
-## TBD
+## 0.2.1 - 2026-04-15
 
 - 🚀 Detect open editor windows and show "active" badge on worktree cards
 - 🚀 Close editor window from worktree card context menu
