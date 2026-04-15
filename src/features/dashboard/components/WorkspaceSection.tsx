@@ -256,35 +256,18 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
               props.onOpenLogs(props.workspace.mainWorktree.name)
             }
           />
-          <Show
-            when={props.workspace.worktrees?.length > 0}
-            fallback={
-              <div class="flex flex-col items-center gap-1 py-3">
-                <p class="text-[10px] opacity-30">No worktrees</p>
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs opacity-40 text-[10px]"
-                  onClick={() => setShowAddInput(true)}
-                >
-                  <Plus size={10} />
-                  Create one
-                </button>
-              </div>
-            }
-          >
-            <For each={props.workspace.worktrees ?? []}>
-              {(wt) => (
-                <WorktreeCard
-                  workspaceName={name()}
-                  worktree={wt}
-                  baseBranch={baseBranch()}
-                  existingBranches={existingBranches()}
-                  hasSetupScript={!!props.workspace.config.setupScript}
-                  onOpenLogs={() => props.onOpenLogs(wt.name)}
-                />
-              )}
-            </For>
-          </Show>
+          <For each={props.workspace.worktrees ?? []}>
+            {(wt) => (
+              <WorktreeCard
+                workspaceName={name()}
+                worktree={wt}
+                baseBranch={baseBranch()}
+                existingBranches={existingBranches()}
+                hasSetupScript={!!props.workspace.config.setupScript}
+                onOpenLogs={() => props.onOpenLogs(wt.name)}
+              />
+            )}
+          </For>
         </div>
       </Show>
     </div>
