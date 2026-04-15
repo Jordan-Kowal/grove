@@ -8,6 +8,10 @@
 - 🔧 Others
 - 💥 Breaking
 
+## 0.2.2 - 2026-04-15
+
+- ✨ Remove empty-state placeholder now that the main repo card is always visible
+
 ## 0.2.1 - 2026-04-15
 
 - 🚀 Detect open editor windows and show "active" badge on worktree cards
