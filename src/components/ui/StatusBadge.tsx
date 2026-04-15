@@ -31,13 +31,18 @@ const StatusDot: Component<{ status: ClaudeStatus; class?: string }> = (
     >
       <Match when={props.status === ClaudeStatus.WORKING}>
         <span
-          class={`loading loading-spinner text-primary ${props.class ?? "loading-xs"}`}
+          class={`loading loading-spinner text-info ${props.class ?? "loading-xs"}`}
         />
       </Match>
       <Match when={props.status === ClaudeStatus.DONE}>
-        <span
-          class={`inline-block rounded-full bg-success ${props.class ?? "size-2.5"}`}
-        />
+        <span class="relative inline-flex">
+          <span
+            class={`absolute inline-block rounded-full bg-success opacity-75 animate-ping ${props.class ?? "size-2.5"}`}
+          />
+          <span
+            class={`relative inline-block rounded-full bg-success ${props.class ?? "size-2.5"}`}
+          />
+        </span>
       </Match>
       <Match when={props.status === ClaudeStatus.IDLE}>
         <span
@@ -45,9 +50,14 @@ const StatusDot: Component<{ status: ClaudeStatus; class?: string }> = (
         />
       </Match>
       <Match when={needsAttention()}>
-        <span
-          class={`inline-block rounded-full bg-error ${props.class ?? "size-2.5"}`}
-        />
+        <span class="relative inline-flex">
+          <span
+            class={`absolute inline-block rounded-full bg-error opacity-75 animate-ping ${props.class ?? "size-2.5"}`}
+          />
+          <span
+            class={`relative inline-block rounded-full bg-error ${props.class ?? "size-2.5"}`}
+          />
+        </span>
       </Match>
     </Switch>
   );

@@ -8,6 +8,11 @@
 - 🔧 Others
 - 💥 Breaking
 
+## TBD
+
+- ✨ Pulsing animation on green (done) and red (needs attention) status badges
+- ✨ Loading spinner color now matches the idle blue for visual consistency
+
 ## 0.2.2 - 2026-04-15
 
 - ✨ Remove empty-state placeholder now that the main repo card is always visible
