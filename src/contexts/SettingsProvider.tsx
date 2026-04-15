@@ -36,6 +36,7 @@ const syncToBackend = (s: Settings) => {
   Window.SetAlwaysOnTop(s.alwaysOnTop);
   SoundService.SetPreferences(s.soundMode, s.soundName);
   MonitorService.SetDoneDuration(s.doneDuration);
+  MonitorService.SetEditorApp(s.editorApp);
   SnapService.SetEnabled(s.snapToEdges);
   if (s.snapToEdges) SnapService.SnapNow();
   TrayService.SetEnabled(s.systemTrayEnabled);

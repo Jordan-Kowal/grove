@@ -23,10 +23,11 @@ func main() {
 	backend.FixPath()
 
 	workspaceSvc := backend.NewWorkspaceService()
+	editorSvc := backend.NewEditorService()
 	soundSvc := backend.NewSoundService()
 	snapSvc := backend.NewSnapService()
 	traySvc := backend.NewTrayService()
-	monitorSvc := backend.NewMonitorService(workspaceSvc, soundSvc, traySvc)
+	monitorSvc := backend.NewMonitorService(workspaceSvc, editorSvc, soundSvc, traySvc)
 	appSvc := backend.NewAppService(appVersion)
 
 	app := application.New(application.Options{
@@ -43,7 +44,7 @@ func main() {
 			application.NewService(soundSvc),
 			application.NewService(snapSvc),
 			application.NewService(traySvc),
-			application.NewService(backend.NewEditorService()),
+			application.NewService(editorSvc),
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: false,

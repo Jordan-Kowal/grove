@@ -21,6 +21,65 @@ func TestPositionWindowValidation(t *testing.T) {
 	}
 }
 
+func TestMatchOpenPaths(t *testing.T) {
+	svc := NewEditorService()
+
+	tests := []struct {
+		name         string
+		windowTitles []string
+		paths        []string
+		wantOpen     map[string]bool
+	}{
+		{
+			"exact folder name in title",
+			[]string{"grove — ~/Projects"},
+			[]string{"/Users/me/Projects/grove"},
+			map[string]bool{"/Users/me/Projects/grove": true},
+		},
+		{
+			"no match",
+			[]string{"other-project — ~/Work"},
+			[]string{"/Users/me/Projects/grove"},
+			map[string]bool{},
+		},
+		{
+			"empty titles",
+			nil,
+			[]string{"/Users/me/Projects/grove"},
+			map[string]bool{},
+		},
+		{
+			"worktree wins over root when both base names appear",
+			[]string{"my-feature — ~/Projects/grove/.worktrees/my-feature"},
+			[]string{"/Users/me/Projects/grove", "/Users/me/Projects/grove/.worktrees/my-feature"},
+			map[string]bool{"/Users/me/Projects/grove/.worktrees/my-feature": true},
+		},
+		{
+			"root matches only when worktree does not",
+			[]string{"grove — ~/Projects/grove"},
+			[]string{"/Users/me/Projects/grove", "/Users/me/Projects/grove/.worktrees/my-feature"},
+			map[string]bool{"/Users/me/Projects/grove": true},
+		},
+		{
+			"multiple windows match different paths",
+			[]string{"grove — editor", "my-feature — editor"},
+			[]string{"/Users/me/Projects/grove", "/Users/me/Projects/grove/.worktrees/my-feature"},
+			map[string]bool{"/Users/me/Projects/grove": true, "/Users/me/Projects/grove/.worktrees/my-feature": true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := svc.MatchOpenPaths(tt.windowTitles, tt.paths)
+			for _, p := range tt.paths {
+				if got[p] != tt.wantOpen[p] {
+					t.Errorf("path %q: got open=%v, want open=%v", p, got[p], tt.wantOpen[p])
+				}
+			}
+		})
+	}
+}
+
 func TestEscapeAppleScript(t *testing.T) {
 	tests := []struct {
 		name  string

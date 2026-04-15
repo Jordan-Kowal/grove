@@ -191,6 +191,7 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
                 deletions: 0,
                 claudeStatus: ClaudeStatus.IDLE,
                 claudeSessionCounts: {},
+                editorOpen: false,
               },
             ],
           };
@@ -360,6 +361,35 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     }
   };
 
+  const closeEditor = async (worktreePath: string) => {
+    const editorApp = settings().editorApp;
+    try {
+      await EditorService.CloseEditorWindow(worktreePath, editorApp);
+      MonitorService.RefreshNow();
+    } catch (e) {
+      console.error("[grove] closeEditor failed:", e);
+    }
+  };
+
+  const closeAllEditors = async (workspaceName: string) => {
+    const ws = workspaces.find((w) => w.name === workspaceName);
+    if (!ws) return;
+    const editorApp = settings().editorApp;
+    const paths: string[] = [];
+    if (ws.mainWorktree.editorOpen) paths.push(ws.mainWorktree.path);
+    for (const wt of ws.worktrees ?? []) {
+      if (wt.editorOpen) paths.push(wt.path);
+    }
+    try {
+      for (const p of paths) {
+        await EditorService.CloseEditorWindow(p, editorApp);
+      }
+      MonitorService.RefreshNow();
+    } catch (e) {
+      console.error("[grove] closeAllEditors failed:", e);
+    }
+  };
+
   const updateWorkspaceConfig = async (
     name: string,
     config: WorkspaceConfig,
@@ -410,6 +440,8 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
     checkoutBranch,
     newBranchOnWorktree,
     focusEditor,
+    closeEditor,
+    closeAllEditors,
     updateWorkspaceConfig,
     syncMainCheckout,
     removeAllWorktrees,

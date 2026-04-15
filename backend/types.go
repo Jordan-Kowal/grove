@@ -38,4 +38,5 @@ type WorktreeInfo struct {
 	Deletions           int                  `json:"deletions"`
 	ClaudeStatus        ClaudeStatus         `json:"claudeStatus"`
 	ClaudeSessionCounts map[ClaudeStatus]int `json:"claudeSessionCounts"`
+	EditorOpen          bool                 `json:"editorOpen"`
 }

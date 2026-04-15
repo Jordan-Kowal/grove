@@ -34,9 +34,11 @@ type trayBadger interface {
 // MonitorService polls workspace/worktree status and emits events on changes.
 type MonitorService struct {
 	workspaceSvc   *WorkspaceService
+	editorSvc      *EditorService
 	soundSvc       soundPlayer
 	traySvc        trayBadger
 	groveDir       string
+	editorApp      string // cached editor app name for window detection
 	mu             sync.RWMutex
 	workspaces     []Workspace
 	stopCh         chan struct{}
@@ -50,13 +52,14 @@ type MonitorService struct {
 }
 
 // NewMonitorService creates a new MonitorService.
-func NewMonitorService(workspaceSvc *WorkspaceService, soundSvc *SoundService, traySvc *TrayService) *MonitorService {
+func NewMonitorService(workspaceSvc *WorkspaceService, editorSvc *EditorService, soundSvc *SoundService, traySvc *TrayService) *MonitorService {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("failed to get home directory: %v", err)
 	}
 	svc := &MonitorService{
 		workspaceSvc:   workspaceSvc,
+		editorSvc:      editorSvc,
 		soundSvc:       soundSvc,
 		traySvc:        traySvc,
 		groveDir:       filepath.Join(homeDir, ".grove", "sessions"),
@@ -76,11 +79,12 @@ func (s *MonitorService) ServiceStartup(_ context.Context, _ application.Service
 	application.Get().Event.On("refresh-requested", func(_ *application.CustomEvent) {
 		s.RefreshNow()
 	})
-	// Fully populate workspaces (structure + git + claude) before launching pollers
+	// Fully populate workspaces (structure + git + claude + editor) before launching pollers
 	// so the frontend's initial GetWorkspaces() call returns complete data.
 	s.refreshWorkspaces()
 	s.refreshGit()
 	s.refreshClaude()
+	s.refreshEditorOpen()
 	go s.pollClaude()
 	go s.pollGit()
 	return nil
@@ -137,6 +141,7 @@ func (s *MonitorService) RefreshNow() {
 	s.refreshWorkspaces()
 	s.refreshGit()
 	s.refreshClaude()
+	s.refreshEditorOpen()
 	application.Get().Event.Emit("workspaces-updated", s.GetWorkspaces())
 }
 
@@ -154,6 +159,7 @@ func (s *MonitorService) pollClaude() {
 			prev := s.GetWorkspaces()
 			s.refreshWorkspaces()
 			s.refreshClaude()
+			s.refreshEditorOpen()
 			if curr := s.GetWorkspaces(); !reflect.DeepEqual(prev, curr) {
 				application.Get().Event.Emit("workspaces-updated", curr)
 			}
@@ -433,6 +439,43 @@ func (s *MonitorService) SetDoneDuration(minutes int) {
 		s.doneDuration = -1
 	} else {
 		s.doneDuration = time.Duration(minutes) * time.Minute
+	}
+	s.mu.Unlock()
+}
+
+// SetEditorApp updates the cached editor app name used for window detection.
+func (s *MonitorService) SetEditorApp(appName string) {
+	s.mu.Lock()
+	s.editorApp = appName
+	s.mu.Unlock()
+}
+
+// refreshEditorOpen queries the editor for open windows and marks matching worktrees.
+func (s *MonitorService) refreshEditorOpen() {
+	s.mu.RLock()
+	appName := s.editorApp
+	var allPaths []string
+	for _, ws := range s.workspaces {
+		allPaths = append(allPaths, ws.MainWorktree.Path)
+		for _, wt := range ws.Worktrees {
+			allPaths = append(allPaths, wt.Path)
+		}
+	}
+	s.mu.RUnlock()
+
+	if appName == "" {
+		return
+	}
+
+	titles := s.editorSvc.GetOpenEditorPaths(appName)
+	openSet := s.editorSvc.MatchOpenPaths(titles, allPaths)
+
+	s.mu.Lock()
+	for i := range s.workspaces {
+		s.workspaces[i].MainWorktree.EditorOpen = openSet[s.workspaces[i].MainWorktree.Path]
+		for j := range s.workspaces[i].Worktrees {
+			s.workspaces[i].Worktrees[j].EditorOpen = openSet[s.workspaces[i].Worktrees[j].Path]
+		}
 	}
 	s.mu.Unlock()
 }

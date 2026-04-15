@@ -8,6 +8,12 @@
 - 🔧 Others
 - 💥 Breaking
 
+## TBD
+
+- 🚀 Detect open editor windows and show "active" badge on worktree cards
+- 🚀 Close editor window from worktree card context menu
+- 🚀 Close all editor windows from workspace context menu
+
 ## 0.2.0 - 2026-04-14
 
 - 🚀 Main repo is now visible as a card and tracked like any worktree

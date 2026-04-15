@@ -40,6 +40,8 @@ export type DashboardContextProps = {
     branchName: string,
   ) => void;
   focusEditor: (worktreePath: string) => void;
+  closeEditor: (worktreePath: string) => void;
+  closeAllEditors: (workspaceName: string) => void;
   updateWorkspaceConfig: (name: string, config: WorkspaceConfig) => void;
   syncMainCheckout: (workspaceName: string) => void;
   removeAllWorktrees: (workspaceName: string) => void;

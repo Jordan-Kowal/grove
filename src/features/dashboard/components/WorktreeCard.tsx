@@ -1,4 +1,5 @@
 import {
+  AppWindowMac,
   Check,
   ClipboardCopy,
   EllipsisVertical,
@@ -133,6 +134,11 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                     root
                   </span>
                 </Show>
+                <Show when={props.worktree.editorOpen}>
+                  <span class="badge badge-xs badge-accent text-[9px] shrink-0">
+                    active
+                  </span>
+                </Show>
               </div>
               <Show when={props.worktree.branch}>
                 <div class="flex items-center justify-between">
@@ -247,6 +253,26 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                       </button>
                     </li>
                   </Show>
+                  <li>
+                    <button
+                      type="button"
+                      class="text-xs"
+                      classList={{
+                        "text-warning": props.worktree.editorOpen,
+                        "opacity-30 pointer-events-none":
+                          !props.worktree.editorOpen,
+                      }}
+                      disabled={!props.worktree.editorOpen}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowMenu(false);
+                        ctx.closeEditor(props.worktree.path);
+                      }}
+                    >
+                      <AppWindowMac size={12} />
+                      Close editor window
+                    </button>
+                  </li>
                   <Show when={!props.isMainRepo}>
                     <li>
                       <button

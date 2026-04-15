@@ -23,6 +23,7 @@ export type WorktreeInfo = {
   deletions: number;
   claudeStatus: ClaudeStatus;
   claudeSessionCounts: Partial<Record<ClaudeStatus, number>>;
+  editorOpen: boolean;
 };
 
 export type Workspace = {

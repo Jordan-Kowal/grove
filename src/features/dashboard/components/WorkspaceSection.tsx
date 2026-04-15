@@ -1,4 +1,5 @@
 import {
+  AppWindowMac,
   ChevronDown,
   ChevronRight,
   EllipsisVertical,
@@ -6,7 +7,7 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-solid";
-import { type Component, createSignal, For, Show } from "solid-js";
+import { type Component, createMemo, createSignal, For, Show } from "solid-js";
 import { BranchNameInput } from "@/components/ui";
 import { useOutsideClick } from "@/hooks";
 import type { Workspace } from "@/types/types";
@@ -29,6 +30,10 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
 
   const name = () => props.workspace.name;
   const hasWorktrees = () => (props.workspace.worktrees?.length ?? 0) > 0;
+  const hasOpenEditors = createMemo(() => {
+    if (props.workspace.mainWorktree.editorOpen) return true;
+    return (props.workspace.worktrees ?? []).some((wt) => wt.editorOpen);
+  });
 
   useOutsideClick(showMenu, () => setShowMenu(false));
 
@@ -91,6 +96,24 @@ export const WorkspaceSection: Component<WorkspaceSectionProps> = (props) => {
                     >
                       <RefreshCw size={12} />
                       Sync main checkout
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      class="text-xs"
+                      classList={{
+                        "text-warning": hasOpenEditors(),
+                        "opacity-30 pointer-events-none": !hasOpenEditors(),
+                      }}
+                      disabled={!hasOpenEditors()}
+                      onClick={() => {
+                        setShowMenu(false);
+                        ctx.closeAllEditors(name());
+                      }}
+                    >
+                      <AppWindowMac size={12} />
+                      Close all editor windows
                     </button>
                   </li>
                   <Show when={hasWorktrees()}>

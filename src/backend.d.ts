@@ -11,6 +11,7 @@ declare module "@backend" {
     RefreshNow(): Promise<void>;
     DismissDone(path: string): Promise<void>;
     SetDoneDuration(minutes: number): Promise<void>;
+    SetEditorApp(appName: string): Promise<void>;
   };
 
   export const WorkspaceService: {
@@ -70,6 +71,7 @@ declare module "@backend" {
   export const EditorService: {
     IsValidApp(name: string): Promise<boolean>;
     FocusEditor(worktreePath: string, editorApp: string): Promise<void>;
+    CloseEditorWindow(worktreePath: string, editorApp: string): Promise<void>;
     PositionWindow(
       appName: string,
       x: number,
