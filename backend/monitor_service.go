@@ -238,6 +238,8 @@ func (s *MonitorService) refreshWorkspaces() {
 			wt.Insertions = old.Insertions
 			wt.Deletions = old.Deletions
 			wt.ClaudeStatus = old.ClaudeStatus
+			wt.ClaudeSessionCounts = old.ClaudeSessionCounts
+			wt.EditorOpen = old.EditorOpen
 		}
 	}
 	for i := range workspaces {
