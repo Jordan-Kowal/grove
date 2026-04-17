@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"syscall"
@@ -17,7 +16,9 @@ import (
 
 const (
 	claudePollInterval = 2 * time.Second
+	editorPollInterval = 5 * time.Second
 	gitPollInterval    = 10 * time.Second
+	livenessCheckEvery = 10 * time.Second
 )
 
 // soundPlayer is the subset of SoundService used by MonitorService.
@@ -33,22 +34,24 @@ type trayBadger interface {
 
 // MonitorService polls workspace/worktree status and emits events on changes.
 type MonitorService struct {
-	workspaceSvc   *WorkspaceService
-	editorSvc      *EditorService
-	soundSvc       soundPlayer
-	traySvc        trayBadger
-	groveDir       string
-	editorApp      string // cached editor app name for window detection
-	mu             sync.RWMutex
-	workspaces     []Workspace
-	stopCh         chan struct{}
-	stopOnce       sync.Once
-	bootTime       time.Time               // app start time — done before this is treated as idle
-	dismissTimes   map[string]time.Time    // last card click per worktree path
-	prevAggregated map[string]ClaudeStatus // track previous aggregated status per worktree path
-	doneDuration   time.Duration           // how long "done" persists; 0 = instant, <0 = forever
-	gitBusy        sync.Mutex              // prevents overlapping git diff scans
-	readSessions   func() []groveSession   // injectable for testing; defaults to readGroveSessions
+	workspaceSvc      *WorkspaceService
+	editorSvc         *EditorService
+	soundSvc          soundPlayer
+	traySvc           trayBadger
+	groveDir          string
+	editorApp         string // cached editor app name for window detection
+	mu                sync.RWMutex
+	workspaces        []Workspace
+	stopCh            chan struct{}
+	stopOnce          sync.Once
+	bootTime          time.Time               // app start time — done before this is treated as idle
+	dismissTimes      map[string]time.Time    // last card click per worktree path
+	prevAggregated    map[string]ClaudeStatus // track previous aggregated status per worktree path
+	doneDuration      time.Duration           // how long "done" persists; 0 = instant, <0 = forever
+	gitBusy           sync.Mutex              // prevents overlapping git diff scans
+	readSessions      func() []groveSession   // injectable for testing; defaults to readGroveSessions
+	stateVersion      uint64                  // bumped on any observable state change; protected by mu
+	lastLivenessCheck time.Time               // last time session PIDs were probed
 }
 
 // NewMonitorService creates a new MonitorService.
@@ -86,6 +89,7 @@ func (s *MonitorService) ServiceStartup(_ context.Context, _ application.Service
 	s.refreshClaude()
 	s.refreshEditorOpen()
 	go s.pollClaude()
+	go s.pollEditor()
 	go s.pollGit()
 	return nil
 }
@@ -147,22 +151,54 @@ func (s *MonitorService) RefreshNow() {
 
 // --- Background polling ---
 
+// bumpVersion increments the state version. Caller must hold s.mu (write lock).
+func (s *MonitorService) bumpVersion() {
+	s.stateVersion++
+}
+
+// emitIfChanged emits "workspaces-updated" only when state version changed since prev.
+// Returns the current version for the caller to track.
+func (s *MonitorService) emitIfChanged(prev uint64) uint64 {
+	s.mu.RLock()
+	curr := s.stateVersion
+	s.mu.RUnlock()
+	if curr == prev {
+		return curr
+	}
+	application.Get().Event.Emit("workspaces-updated", s.GetWorkspaces())
+	return curr
+}
+
 // pollClaude polls Claude session status every 2s and detects new/removed worktrees.
 func (s *MonitorService) pollClaude() {
 	ticker := time.NewTicker(claudePollInterval)
 	defer ticker.Stop()
+	var prev uint64
 	for {
 		select {
 		case <-s.stopCh:
 			return
 		case <-ticker.C:
-			prev := s.GetWorkspaces()
 			s.refreshWorkspaces()
 			s.refreshClaude()
+			prev = s.emitIfChanged(prev)
+		}
+	}
+}
+
+// pollEditor queries the editor for open windows on a slower cadence than pollClaude.
+// Editor state rarely changes between ticks, and osascript spawns are expensive.
+func (s *MonitorService) pollEditor() {
+	ticker := time.NewTicker(editorPollInterval)
+	defer ticker.Stop()
+	var prev uint64
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case <-ticker.C:
 			s.refreshEditorOpen()
-			if curr := s.GetWorkspaces(); !reflect.DeepEqual(prev, curr) {
-				application.Get().Event.Emit("workspaces-updated", curr)
-			}
+			prev = s.emitIfChanged(prev)
 		}
 	}
 }
@@ -172,6 +208,7 @@ func (s *MonitorService) pollClaude() {
 func (s *MonitorService) pollGit() {
 	ticker := time.NewTicker(gitPollInterval)
 	defer ticker.Stop()
+	var prev uint64
 	for {
 		select {
 		case <-s.stopCh:
@@ -180,12 +217,9 @@ func (s *MonitorService) pollGit() {
 			if !s.gitBusy.TryLock() {
 				continue // previous scan still running, skip
 			}
-			prev := s.GetWorkspaces()
 			s.refreshGit()
 			s.gitBusy.Unlock()
-			if curr := s.GetWorkspaces(); !reflect.DeepEqual(prev, curr) {
-				application.Get().Event.Emit("workspaces-updated", curr)
-			}
+			prev = s.emitIfChanged(prev)
 		}
 	}
 }
@@ -248,8 +282,34 @@ func (s *MonitorService) refreshWorkspaces() {
 			restorePrev(&workspaces[i].Worktrees[j])
 		}
 	}
+	if workspaceStructureChanged(s.workspaces, workspaces) {
+		s.bumpVersion()
+	}
 	s.workspaces = workspaces
 	s.mu.Unlock()
+}
+
+// workspaceStructureChanged returns true if the set of workspace/worktree paths differs
+// between old and new. Does not compare fields that other refresh methods own
+// (Branch, FilesChanged, ClaudeStatus, EditorOpen) — those bump version themselves.
+func workspaceStructureChanged(oldWs, newWs []Workspace) bool {
+	if len(oldWs) != len(newWs) {
+		return true
+	}
+	for i := range oldWs {
+		if oldWs[i].Name != newWs[i].Name ||
+			oldWs[i].MainWorktree.Path != newWs[i].MainWorktree.Path ||
+			len(oldWs[i].Worktrees) != len(newWs[i].Worktrees) {
+			return true
+		}
+		for j := range oldWs[i].Worktrees {
+			if oldWs[i].Worktrees[j].Path != newWs[i].Worktrees[j].Path ||
+				oldWs[i].Worktrees[j].Name != newWs[i].Worktrees[j].Name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // --- Git diff refresh ---
@@ -295,13 +355,22 @@ func (s *MonitorService) refreshGit() {
 		dataByPath[p] = results[i]
 	}
 
+	changed := false
 	applyGit := func(wt *WorktreeInfo) {
-		if data, ok := dataByPath[wt.Path]; ok {
-			wt.Branch = data.branch
-			wt.FilesChanged = data.files
-			wt.Insertions = data.ins
-			wt.Deletions = data.dels
+		data, ok := dataByPath[wt.Path]
+		if !ok {
+			return
 		}
+		if wt.Branch != data.branch ||
+			wt.FilesChanged != data.files ||
+			wt.Insertions != data.ins ||
+			wt.Deletions != data.dels {
+			changed = true
+		}
+		wt.Branch = data.branch
+		wt.FilesChanged = data.files
+		wt.Insertions = data.ins
+		wt.Deletions = data.dels
 	}
 
 	// Apply results under lock
@@ -311,6 +380,9 @@ func (s *MonitorService) refreshGit() {
 		for j := range s.workspaces[i].Worktrees {
 			applyGit(&s.workspaces[i].Worktrees[j])
 		}
+	}
+	if changed {
+		s.bumpVersion()
 	}
 	s.mu.Unlock()
 }
@@ -389,6 +461,7 @@ func (s *MonitorService) refreshClaude() {
 	doneTransition := false
 	attentionTransition := false
 	needsAttention := false
+	changed := false
 
 	applyStatus := func(wt *WorktreeInfo) {
 		newStatus := ClaudeStatusIdle
@@ -407,9 +480,13 @@ func (s *MonitorService) refreshClaude() {
 		if newStatus == ClaudeStatusPermission || newStatus == ClaudeStatusQuestion {
 			needsAttention = true
 		}
+		newCounts := countsByPath[wt.Path]
+		if wt.ClaudeStatus != newStatus || !sessionCountsEqual(wt.ClaudeSessionCounts, newCounts) {
+			changed = true
+		}
 		s.prevAggregated[wt.Path] = newStatus
 		wt.ClaudeStatus = newStatus
-		wt.ClaudeSessionCounts = countsByPath[wt.Path]
+		wt.ClaudeSessionCounts = newCounts
 	}
 
 	for i := range s.workspaces {
@@ -417,6 +494,9 @@ func (s *MonitorService) refreshClaude() {
 		for j := range s.workspaces[i].Worktrees {
 			applyStatus(&s.workspaces[i].Worktrees[j])
 		}
+	}
+	if changed {
+		s.bumpVersion()
 	}
 	s.mu.Unlock()
 
@@ -473,13 +553,37 @@ func (s *MonitorService) refreshEditorOpen() {
 	openSet := s.editorSvc.MatchOpenPaths(titles, allPaths)
 
 	s.mu.Lock()
-	for i := range s.workspaces {
-		s.workspaces[i].MainWorktree.EditorOpen = openSet[s.workspaces[i].MainWorktree.Path]
-		for j := range s.workspaces[i].Worktrees {
-			s.workspaces[i].Worktrees[j].EditorOpen = openSet[s.workspaces[i].Worktrees[j].Path]
+	changed := false
+	applyEditor := func(wt *WorktreeInfo) {
+		newOpen := openSet[wt.Path]
+		if wt.EditorOpen != newOpen {
+			changed = true
+			wt.EditorOpen = newOpen
 		}
 	}
+	for i := range s.workspaces {
+		applyEditor(&s.workspaces[i].MainWorktree)
+		for j := range s.workspaces[i].Worktrees {
+			applyEditor(&s.workspaces[i].Worktrees[j])
+		}
+	}
+	if changed {
+		s.bumpVersion()
+	}
 	s.mu.Unlock()
+}
+
+// sessionCountsEqual compares two ClaudeSessionCounts maps for equality.
+func sessionCountsEqual(a, b map[ClaudeStatus]int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
 }
 
 // DismissDone records a dismiss click for the given worktree path,
@@ -498,7 +602,18 @@ func (s *MonitorService) readGroveSessions() []groveSession {
 		return nil
 	}
 
+	// Liveness probe (kill syscall) is staggered: runs at most once per livenessCheckEvery
+	// window. Between probes, session files are trusted based on mtime. Dead PIDs linger
+	// up to livenessCheckEvery seconds — cosmetic only.
+	s.mu.Lock()
+	checkLiveness := time.Since(s.lastLivenessCheck) >= livenessCheckEvery
+	if checkLiveness {
+		s.lastLivenessCheck = time.Now()
+	}
+	s.mu.Unlock()
+
 	var sessions []groveSession
+	var toRemove []string
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
@@ -515,9 +630,8 @@ func (s *MonitorService) readGroveSessions() []groveSession {
 			continue
 		}
 
-		// Remove session file if Claude process is dead.
-		if !isProcessAlive(sess.PID) {
-			_ = os.Remove(filePath)
+		if checkLiveness && !isProcessAlive(sess.PID) {
+			toRemove = append(toRemove, filePath)
 			continue
 		}
 
@@ -529,6 +643,16 @@ func (s *MonitorService) readGroveSessions() []groveSession {
 
 		sessions = append(sessions, sess)
 	}
+
+	// Cleanup off the hot path — readers never block on os.Remove.
+	if len(toRemove) > 0 {
+		go func(paths []string) {
+			for _, p := range paths {
+				_ = os.Remove(p)
+			}
+		}(toRemove)
+	}
+
 	return sessions
 }
 

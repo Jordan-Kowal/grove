@@ -12,6 +12,8 @@
 
 - ✨ Pulsing animation on green (done) and red (needs attention) status badges
 - ✨ Loading spinner color now matches the idle blue for visual consistency
+- 🐞 Editor "active" badge and Claude session counts now persist across workspace rebuilds
+- 🔧 Reduced monitor overhead and improved overall performances
 
 ## 0.2.2 - 2026-04-15
 

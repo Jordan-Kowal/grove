@@ -3,6 +3,7 @@ package backend
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -550,5 +551,224 @@ func TestGroveStateToClaudeStatus(t *testing.T) {
 				t.Errorf("groveStateToClaudeStatus(%q) = %q, want %q", tt.state, got, tt.want)
 			}
 		})
+	}
+}
+
+// --- Version counter tests ---
+
+func TestRefreshClaude_BumpsVersion_OnStatusChange(t *testing.T) {
+	ws := []Workspace{{Worktrees: []WorktreeInfo{{Path: "/wt"}}}}
+	state := "working"
+	sessions := func() []groveSession {
+		return []groveSession{{State: state, CWD: "/wt", ModTime: time.Now()}}
+	}
+	svc, _, _ := newTestMonitor(ws, sessions)
+
+	svc.refreshClaude()
+	v1 := svc.stateVersion
+	if v1 == 0 {
+		t.Fatal("stateVersion = 0 after first refresh, want bump")
+	}
+
+	// Second refresh, same state — no bump.
+	svc.refreshClaude()
+	if svc.stateVersion != v1 {
+		t.Errorf("stateVersion bumped on no-op refresh: %d -> %d", v1, svc.stateVersion)
+	}
+
+	// State changes — bump expected.
+	state = "permission"
+	svc.refreshClaude()
+	if svc.stateVersion == v1 {
+		t.Errorf("stateVersion did not bump on status change: stayed at %d", v1)
+	}
+}
+
+func TestRefreshClaude_BumpsVersion_OnSessionCountChange(t *testing.T) {
+	ws := []Workspace{{Worktrees: []WorktreeInfo{{Path: "/wt"}}}}
+	var list []groveSession
+	sessions := func() []groveSession { return list }
+	svc, _, _ := newTestMonitor(ws, sessions)
+
+	list = make([]groveSession, 0, 2)
+	list = append(list, groveSession{State: "working", CWD: "/wt", ModTime: time.Now()})
+	svc.refreshClaude()
+	v1 := svc.stateVersion
+
+	// Add second session of same status — counts change 1 -> 2, version should bump.
+	list = append(list, groveSession{State: "working", CWD: "/wt", ModTime: time.Now()})
+	svc.refreshClaude()
+	if svc.stateVersion == v1 {
+		t.Error("stateVersion did not bump when session count changed")
+	}
+}
+
+func TestEmitIfChanged_ReturnsCurrentVersion(t *testing.T) {
+	svc, _, _ := newTestMonitor(nil, func() []groveSession { return nil })
+
+	// Cannot actually call emitIfChanged (needs Wails application); test the version-tracking
+	// part by inspecting stateVersion directly after bumps.
+	svc.mu.Lock()
+	svc.bumpVersion()
+	svc.bumpVersion()
+	got := svc.stateVersion
+	svc.mu.Unlock()
+
+	if got != 2 {
+		t.Errorf("stateVersion = %d after 2 bumps, want 2", got)
+	}
+}
+
+// --- sessionCountsEqual tests ---
+
+func TestSessionCountsEqual(t *testing.T) {
+	tests := []struct {
+		name string
+		a, b map[ClaudeStatus]int
+		want bool
+	}{
+		{"both nil", nil, nil, true},
+		{"empty vs nil", map[ClaudeStatus]int{}, nil, true},
+		{"same single entry", map[ClaudeStatus]int{ClaudeStatusWorking: 1}, map[ClaudeStatus]int{ClaudeStatusWorking: 1}, true},
+		{"different count", map[ClaudeStatus]int{ClaudeStatusWorking: 1}, map[ClaudeStatus]int{ClaudeStatusWorking: 2}, false},
+		{"different key", map[ClaudeStatus]int{ClaudeStatusWorking: 1}, map[ClaudeStatus]int{ClaudeStatusIdle: 1}, false},
+		{"different length", map[ClaudeStatus]int{ClaudeStatusWorking: 1}, map[ClaudeStatus]int{ClaudeStatusWorking: 1, ClaudeStatusIdle: 1}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sessionCountsEqual(tt.a, tt.b); got != tt.want {
+				t.Errorf("sessionCountsEqual = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// --- workspaceStructureChanged tests ---
+
+func TestWorkspaceStructureChanged(t *testing.T) {
+	base := []Workspace{{
+		Name:         "foo",
+		MainWorktree: WorktreeInfo{Path: "/main"},
+		Worktrees:    []WorktreeInfo{{Name: "wt1", Path: "/wt1"}},
+	}}
+
+	tests := []struct {
+		name     string
+		old, new []Workspace
+		want     bool
+	}{
+		{"identical", base, base, false},
+		{"len differs", base, append([]Workspace{}, base...), false}, // sanity: same slice copy
+		{
+			"added workspace",
+			base,
+			append([]Workspace{}, base[0], Workspace{Name: "bar"}),
+			true,
+		},
+		{
+			"added worktree",
+			base,
+			[]Workspace{{Name: "foo", MainWorktree: WorktreeInfo{Path: "/main"}, Worktrees: []WorktreeInfo{{Name: "wt1", Path: "/wt1"}, {Name: "wt2", Path: "/wt2"}}}},
+			true,
+		},
+		{
+			"path changed",
+			base,
+			[]Workspace{{Name: "foo", MainWorktree: WorktreeInfo{Path: "/main"}, Worktrees: []WorktreeInfo{{Name: "wt1", Path: "/wt1-renamed"}}}},
+			true,
+		},
+		{
+			"field diff git stats only (ignored)",
+			base,
+			[]Workspace{{Name: "foo", MainWorktree: WorktreeInfo{Path: "/main"}, Worktrees: []WorktreeInfo{{Name: "wt1", Path: "/wt1", FilesChanged: 99}}}},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := workspaceStructureChanged(tt.old, tt.new); got != tt.want {
+				t.Errorf("workspaceStructureChanged = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// --- readGroveSessions liveness stagger tests ---
+
+// newTestMonitorWithGroveDir wires a MonitorService pointing at the given groveDir
+// so readGroveSessions reads real files on disk.
+func newTestMonitorWithGroveDir(t *testing.T, groveDir string) *MonitorService {
+	t.Helper()
+	return &MonitorService{
+		groveDir:       groveDir,
+		bootTime:       time.Now().Add(-time.Hour),
+		dismissTimes:   make(map[string]time.Time),
+		prevAggregated: make(map[string]ClaudeStatus),
+		doneDuration:   30 * time.Minute,
+	}
+}
+
+func TestReadGroveSessions_StaggersLivenessCheck(t *testing.T) {
+	dir := t.TempDir()
+	svc := newTestMonitorWithGroveDir(t, dir)
+
+	// Write a session file for a dead PID (very high, unlikely to exist).
+	content := []byte(`{"state":"working","cwd":"/somewhere","pid":4999999}`)
+	filePath := filepath.Join(dir, "4999999.json")
+	if err := os.WriteFile(filePath, content, 0o600); err != nil {
+		t.Fatalf("write test session: %v", err)
+	}
+
+	// First call: liveness check runs (lastLivenessCheck is zero time, so elapsed >= threshold).
+	// Dead PID should be scheduled for removal (async).
+	_ = svc.readGroveSessions()
+
+	// Wait for async os.Remove goroutine to complete.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
+		t.Error("dead session file should have been removed after first call")
+	}
+
+	// Write another dead-PID file and immediately call again.
+	// lastLivenessCheck was just set, so this call should NOT probe; file should survive.
+	if err := os.WriteFile(filePath, content, 0o600); err != nil {
+		t.Fatalf("rewrite test session: %v", err)
+	}
+	_ = svc.readGroveSessions()
+	time.Sleep(50 * time.Millisecond) // allow any stray goroutine to run
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		t.Error("dead session file removed during stagger window; liveness check should have been skipped")
+	}
+}
+
+func TestReadGroveSessions_ReturnsAliveSessionEvenWithinStaggerWindow(t *testing.T) {
+	dir := t.TempDir()
+	svc := newTestMonitorWithGroveDir(t, dir)
+
+	// Use our own PID so liveness check passes on the first call.
+	ownPID := os.Getpid()
+	content := []byte(`{"state":"working","cwd":"/somewhere","pid":` + strconv.Itoa(ownPID) + `}`)
+	filePath := filepath.Join(dir, strconv.Itoa(ownPID)+".json")
+	if err := os.WriteFile(filePath, content, 0o600); err != nil {
+		t.Fatalf("write test session: %v", err)
+	}
+
+	// First call: liveness runs, PID alive, file kept.
+	sessions := svc.readGroveSessions()
+	if len(sessions) != 1 {
+		t.Fatalf("first call: got %d sessions, want 1", len(sessions))
+	}
+
+	// Second call: liveness skipped, but file still read and returned.
+	sessions = svc.readGroveSessions()
+	if len(sessions) != 1 {
+		t.Errorf("second call (stagger window): got %d sessions, want 1", len(sessions))
 	}
 }
