@@ -8,7 +8,7 @@
 - 🔧 Others
 - 💥 Breaking
 
-## TBD
+## 0.2.3 - 2026-04-17
 
 - ✨ Pulsing animation on green (done) and red (needs attention) status badges
 - ✨ Loading spinner color now matches the idle blue for visual consistency
