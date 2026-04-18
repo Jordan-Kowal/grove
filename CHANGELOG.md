@@ -15,6 +15,7 @@
 - ✨ Accessibility and AppleEvents permissions now persist across updates (stable signing identity)
 - 💥 Removed `setup.sh` one-line installer; download the `.dmg` from the Releases page instead
 - 🔧 Auto-update now downloads a `.dmg` and no longer resets TCC permissions
+- 🔧 Pinned all GitHub Actions in CI workflows to commit SHAs for supply chain hardening
 
 ## 0.2.3 - 2026-04-17
 

@@ -7,7 +7,5 @@
 
 ### Nice to have
 
-- [ ] Auto-update: add checksum/signature verification to `curl | bash` update mechanism (`app_service.go`)
-- [ ] Pin GitHub Actions to commit SHAs instead of mutable tags in `build-and-release.yml` and `code-quality.yml` (supply chain hardening for release pipeline).
 - [ ] **Improve logo design**
 - [ ] When a git command fails, we dont see the logs
