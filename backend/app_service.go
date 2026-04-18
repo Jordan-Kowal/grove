@@ -35,13 +35,13 @@ func (s *AppService) InstallUpdate(version string) {
 	dialog := app.Dialog.Question().
 		SetTitle("Update Available").
 		SetMessage(fmt.Sprintf(
-			"A new version (%s) is available.\n\nThe app will close, update, and reopen automatically.\n\nNote: You may need to re-grant Accessibility permission in System Settings after updating.\n\nDo you want to proceed?",
+			"A new version (%s) is available.\n\nThe app will close, update, and reopen automatically.\n\nDo you want to proceed?",
 			version,
 		))
 
 	confirm := dialog.AddButton("Update")
 	confirm.OnClick(func() {
-		url := fmt.Sprintf("https://raw.githubusercontent.com/Jordan-Kowal/grove/%s/setup.sh", version)
+		url := fmt.Sprintf("https://raw.githubusercontent.com/Jordan-Kowal/grove/%s/scripts/update.sh", version)
 		script := fmt.Sprintf(`(
 			sleep 2
 			curl -fsSL %s | bash >> /dev/null 2>&1

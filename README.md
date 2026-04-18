@@ -63,28 +63,15 @@
 
 ### Download
 
-**Option 1: One-line installer (Recommended)**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Jordan-Kowal/grove/main/setup.sh | bash
-```
-
-**Option 2: Manual installation**
-
 1. Go to the [Releases page](https://github.com/Jordan-Kowal/grove/releases)
-2. Download the latest `Grove-x.x.x.zip` file
-3. Double-click the ZIP file to extract it
-4. Run: `xattr -cr Grove.app` to remove quarantine attributes
-5. Drag the `Grove.app` to your Applications folder
-6. Launch the app from Applications or Spotlight
+2. Download the latest `Grove-x.x.x.dmg` file
+3. Double-click the DMG to open it
+4. Drag `Grove.app` onto the `Applications` folder shortcut
+5. Launch Grove from Applications or Spotlight
 
 ### First Run
 
-On macOS, you may see a security warning when first opening the app. To resolve this:
-
-1. Go to **System Preferences** → **Security & Privacy**
-2. Click **"Open Anyway"** next to the Grove warning
-3. Alternatively, right-click the app and select **"Open"** from the context menu
+Grove is signed and notarized by Apple, so it should launch without any security warnings. On first launch, Grove may request Accessibility permission for window management — grant it in **System Settings** → **Privacy & Security** → **Accessibility**.
 
 ## 🔗 Claude Code Hook Setup
 
@@ -97,7 +84,7 @@ Grove automatically installs a hook script at `~/.grove/hook.sh` and merges the 
 - **Git diffs**: Captured by polling `git diff HEAD --shortstat` on each worktree every 10 seconds
 - **Claude monitoring**: On startup, Grove installs a hook script (`~/.grove/hook.sh`) and merges hooks into `~/.claude/settings.json`. These hooks make Claude write session state (working, permission, question, done) as JSON files in `~/.grove/sessions/`. Grove polls that directory every 2 seconds to update the dashboard
 - **Sounds**: Notification sounds (`.aiff`) are embedded in the binary via Go's `embed` package and extracted to a cache on first use
-- **Auto-update**: The frontend checks the GitHub Releases API for newer versions; the backend downloads and installs via `setup.sh`
+- **Auto-update**: The frontend checks the GitHub Releases API for newer versions; the backend downloads the signed `.dmg` and installs via `scripts/update.sh`
 
 ## ⚙️ Settings
 

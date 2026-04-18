@@ -8,6 +8,14 @@
 - 🔧 Others
 - 💥 Breaking
 
+## TBD
+
+- 🚀 App is now signed with Apple Developer ID and notarized — no more Gatekeeper warnings or `xattr` workarounds
+- 🚀 Installation via `.dmg` with drag-to-Applications window (replaces `.zip` + setup script)
+- ✨ Accessibility and AppleEvents permissions now persist across updates (stable signing identity)
+- 💥 Removed `setup.sh` one-line installer; download the `.dmg` from the Releases page instead
+- 🔧 Auto-update now downloads a `.dmg` and no longer resets TCC permissions
+
 ## 0.2.3 - 2026-04-17
 
 - ✨ Pulsing animation on green (done) and red (needs attention) status badges
