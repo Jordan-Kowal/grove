@@ -74,9 +74,9 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
   };
 
   onMount(() => {
-    MonitorService.GetWorkspaces()
+    MonitorService.Snapshot()
       .then((ws) => setWorkspaces(reconcile(ws, { key: "name" })))
-      .catch((e) => console.error("[grove] initial GetWorkspaces failed:", e));
+      .catch((e) => console.error("[grove] initial Snapshot failed:", e));
     const unsubWorkspaces = Events.On(
       "workspaces-updated",
       (event: WailsEvent<Workspace[]>) => {

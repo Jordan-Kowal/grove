@@ -128,8 +128,10 @@ func (s *MonitorService) ServiceShutdown() error {
 	return nil
 }
 
-// GetWorkspaces returns the current workspace list with status.
-func (s *MonitorService) GetWorkspaces() []Workspace {
+// Snapshot returns the current workspace list with status. It is a read-only
+// clone of the MonitorService's cache — distinct from WorkspaceService.GetWorkspaces,
+// which scans the filesystem.
+func (s *MonitorService) Snapshot() []Workspace {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]Workspace, len(s.workspaces))
@@ -146,7 +148,7 @@ func (s *MonitorService) RefreshNow() {
 	s.refreshGit()
 	s.refreshClaude()
 	s.refreshEditorOpen()
-	application.Get().Event.Emit("workspaces-updated", s.GetWorkspaces())
+	application.Get().Event.Emit("workspaces-updated", s.Snapshot())
 }
 
 // --- Background polling ---
@@ -165,7 +167,7 @@ func (s *MonitorService) emitIfChanged(prev uint64) uint64 {
 	if curr == prev {
 		return curr
 	}
-	application.Get().Event.Emit("workspaces-updated", s.GetWorkspaces())
+	application.Get().Event.Emit("workspaces-updated", s.Snapshot())
 	return curr
 }
 
@@ -593,7 +595,7 @@ func (s *MonitorService) DismissDone(path string) {
 	s.dismissTimes[path] = time.Now()
 	s.mu.Unlock()
 	s.refreshClaude()
-	application.Get().Event.Emit("workspaces-updated", s.GetWorkspaces())
+	application.Get().Event.Emit("workspaces-updated", s.Snapshot())
 }
 
 func (s *MonitorService) readGroveSessions() []groveSession {

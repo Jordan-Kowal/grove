@@ -1,21 +1,4 @@
-import {
-  AppWindowMac,
-  Check,
-  ClipboardCopy,
-  EllipsisVertical,
-  GitBranch,
-  GitBranchPlus,
-  GitMerge,
-  Play,
-  Trash2,
-} from "lucide-solid";
-import {
-  type Component,
-  createMemo,
-  createSignal,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { type Component, createMemo, createSignal, Show } from "solid-js";
 import { StatusBadge } from "@/components/ui";
 import { useOutsideClick } from "@/hooks";
 import {
@@ -25,8 +8,9 @@ import {
   type WorktreeInfo,
 } from "@/types/types";
 import { useDashboardContext } from "../contexts";
-import { Action, QuickActionPanel } from "./QuickActionPanel";
+import { type Action, QuickActionPanel } from "./QuickActionPanel";
 import { TaskStatusBar } from "./TaskStatusBar";
+import { WorktreeCardMenu } from "./WorktreeCardMenu";
 
 type WorktreeCardProps = {
   workspaceName: string;
@@ -42,19 +26,6 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
   const ctx = useDashboardContext();
   const [showMenu, setShowMenu] = createSignal(false);
   const [activeAction, setActiveAction] = createSignal<Action | null>(null);
-  const [copied, setCopied] = createSignal(false);
-  let copiedTimer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(copiedTimer));
-
-  const copyBranch = () => {
-    navigator.clipboard.writeText(props.worktree.branch);
-    setCopied(true);
-    clearTimeout(copiedTimer);
-    copiedTimer = setTimeout(() => {
-      setCopied(false);
-      setShowMenu(false);
-    }, 1500);
-  };
 
   const key = () => `${props.workspaceName}/${props.worktree.name}`;
   const task = () => ctx.taskStatuses()[key()];
@@ -161,141 +132,16 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
           </div>
         </button>
 
-        {/* Menu */}
         <Show when={showMenuAllowed()}>
-          <div class="relative shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              type="button"
-              class="btn btn-ghost btn-xs p-0.5 h-auto min-h-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(!showMenu());
-              }}
-            >
-              <EllipsisVertical size={12} />
-            </button>
-            <Show when={showMenu()}>
-              <div class="absolute right-0 top-full z-50 mt-1">
-                <ul class="menu menu-xs bg-base-300 rounded-box shadow-lg w-48 p-1">
-                  <li>
-                    <button
-                      type="button"
-                      class="text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openAction(Action.REBASE);
-                      }}
-                    >
-                      <GitMerge size={12} />
-                      Rebase current branch
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      class="text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openAction(Action.CHECKOUT);
-                      }}
-                    >
-                      <GitBranch size={12} />
-                      Checkout existing branch
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      class="text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openAction(Action.NEW_BRANCH);
-                      }}
-                    >
-                      <GitBranchPlus size={12} />
-                      Move to new branch
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      class="text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        copyBranch();
-                      }}
-                    >
-                      <Show
-                        when={copied()}
-                        fallback={<ClipboardCopy size={12} />}
-                      >
-                        <Check size={12} class="text-success" />
-                      </Show>
-                      {copied() ? "Copied!" : "Copy branch name"}
-                    </button>
-                  </li>
-                  <Show when={!props.isMainRepo && props.hasSetupScript}>
-                    <li>
-                      <button
-                        type="button"
-                        class="text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowMenu(false);
-                          ctx.retrySetup(
-                            props.workspaceName,
-                            props.worktree.name,
-                          );
-                        }}
-                      >
-                        <Play size={12} />
-                        Rerun setup script
-                      </button>
-                    </li>
-                  </Show>
-                  <li>
-                    <button
-                      type="button"
-                      class="text-xs"
-                      classList={{
-                        "text-warning": props.worktree.editorOpen,
-                        "opacity-30 pointer-events-none":
-                          !props.worktree.editorOpen,
-                      }}
-                      disabled={!props.worktree.editorOpen}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowMenu(false);
-                        ctx.closeEditor(props.worktree.path);
-                      }}
-                    >
-                      <AppWindowMac size={12} />
-                      Close editor window
-                    </button>
-                  </li>
-                  <Show when={!props.isMainRepo}>
-                    <li>
-                      <button
-                        type="button"
-                        class="text-error text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowMenu(false);
-                          ctx.removeWorktree(
-                            props.workspaceName,
-                            props.worktree.name,
-                          );
-                        }}
-                      >
-                        <Trash2 size={12} />
-                        Remove worktree
-                      </button>
-                    </li>
-                  </Show>
-                </ul>
-              </div>
-            </Show>
-          </div>
+          <WorktreeCardMenu
+            workspaceName={props.workspaceName}
+            worktree={props.worktree}
+            isMainRepo={props.isMainRepo ?? false}
+            hasSetupScript={props.hasSetupScript}
+            showMenu={showMenu}
+            setShowMenu={setShowMenu}
+            onOpenAction={openAction}
+          />
         </Show>
       </div>
 

@@ -8,7 +8,7 @@ declare module "@backend" {
   };
 
   export const MonitorService: {
-    GetWorkspaces(): Promise<Workspace[]>;
+    Snapshot(): Promise<Workspace[]>;
     RefreshNow(): Promise<void>;
     DismissDone(path: string): Promise<void>;
     SetDoneDuration(minutes: number): Promise<void>;

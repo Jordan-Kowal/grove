@@ -64,7 +64,7 @@ export const Settings: Component<SettingsProps> = (props) => {
   };
 
   onMount(async () => {
-    const ws = await MonitorService.GetWorkspaces();
+    const ws = await MonitorService.Snapshot();
     setWorkspaces(ws);
   });
 
