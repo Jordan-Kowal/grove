@@ -85,7 +85,8 @@ tasks:
   upgrade:
     summary: Updates all dependencies to latest versions and runs checks
     cmds:
-      - bun update --latest
+      - bunx npm-check-updates -u
+      - bun install
       - go get -u ./...
       - go mod tidy
       - task: check
