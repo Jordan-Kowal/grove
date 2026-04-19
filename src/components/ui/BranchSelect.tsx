@@ -1,14 +1,13 @@
 import { WorkspaceService } from "@backend";
 import {
   type Component,
-  createEffect,
   createMemo,
   createResource,
   createSignal,
   For,
-  onCleanup,
   Show,
 } from "solid-js";
+import { useOutsideClick } from "@/hooks";
 import type { BranchInfo } from "@/types/types";
 
 type BranchSelectProps = {
@@ -46,24 +45,20 @@ export const BranchSelect: Component<BranchSelectProps> = (props) => {
     setOpen(false);
   };
 
-  // Close on outside click
-  createEffect(() => {
-    if (!open()) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        inputRef &&
-        !inputRef.closest(".branch-select")?.contains(e.target as Node)
-      ) {
+  let containerRef: HTMLDivElement | undefined;
+  useOutsideClick(
+    open,
+    (e) => {
+      if (!containerRef?.contains(e.target as Node)) {
         setOpen(false);
         setQuery("");
       }
-    };
-    document.addEventListener("mousedown", handler);
-    onCleanup(() => document.removeEventListener("mousedown", handler));
-  });
+    },
+    "mousedown",
+  );
 
   return (
-    <div class="branch-select relative">
+    <div ref={containerRef} class="branch-select relative">
       <div class="relative">
         <input
           ref={inputRef}

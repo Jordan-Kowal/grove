@@ -29,18 +29,21 @@ src/
   backend.d.ts           # Type declarations for Wails-generated bindings
 
 backend/
-  workspace_service.go   # Workspace/worktree CRUD, git operations, script execution, log streaming
-  workspace_types.go     # Workspace, WorkspaceConfig types
-  monitor_service.go     # Polling, Claude status detection, event emission
-  app_service.go         # Version info, auto-update via GitHub releases
-  editor_service.go      # Editor focus/open (configurable app)
-  snap_service.go        # Window edge snapping, editor positioning
-  sound_service.go       # macOS system sound playback (bundled .aiff files)
-  tray_service.go        # macOS menu bar (system tray) icon
-  claude_settings.go     # Claude Code hook registration and validation
-  types.go               # Shared types (ClaudeStatus, WorktreeInfo)
-  git.go                 # Git diff stat parsing
-  fix_path.go            # PATH resolution for GUI apps
+  workspace_service.go          # Workspace/worktree CRUD, git operations, script execution, log streaming
+  workspace_types.go            # Workspace, WorkspaceConfig, BranchInfo types
+  monitor_service.go            # Polling, Claude status detection, event emission
+  app_service.go                # Version info, auto-update via GitHub releases
+  editor_service.go             # Editor focus/open (configurable app)
+  snap_service.go               # Window edge snapping, editor positioning
+  sound_service.go              # macOS system sound playback (bundled .aiff files)
+  tray_service.go               # macOS menu bar (system tray) icon
+  claude_settings.go            # Claude Code hook registration and validation
+  accessibility_darwin.go       # macOS AXIsProcessTrusted permission check
+  accessibility_other.go        # Non-Darwin stub for the accessibility check
+  clickthrough_darwin.go        # macOS click-through (bring-to-front) handling
+  types.go                      # Shared types (ClaudeStatus, WorktreeInfo, task events)
+  git.go                        # Git diff stat parsing
+  fix_path.go                   # PATH resolution for GUI apps
 ```
 
 **Shared** (`src/{type}/`, `backend/`) — used by 2+ features

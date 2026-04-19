@@ -68,7 +68,7 @@ const AppContent: Component = () => {
   );
 };
 
-const App: Component = () => {
+export const App: Component = () => {
   return (
     <main class="min-h-screen bg-base-100 text-base-content">
       <SettingsProvider>
@@ -90,5 +90,3 @@ const App: Component = () => {
     </main>
   );
 };
-
-export default App;

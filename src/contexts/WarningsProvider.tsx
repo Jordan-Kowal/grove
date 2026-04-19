@@ -1,6 +1,6 @@
 import { AppService, EditorService } from "@backend";
 import {
-  createEffect,
+  createMemo,
   createSignal,
   type JSX,
   onCleanup,
@@ -39,6 +39,12 @@ export const WarningsProvider = (props: WarningsProviderProps) => {
     boolean | null
   >(null);
 
+  // Accessibility warning is derived from (trusted, snapToEdges): warn only
+  // when Dock-to-edge is enabled AND the permission is explicitly denied.
+  const accessibilityWarning = createMemo(
+    () => settings().snapToEdges && accessibilityTrusted() === false,
+  );
+
   const setWarning = (key: WarningKey, active: boolean) => {
     setWarnings((prev) => {
       const has = prev.has(key);
@@ -50,9 +56,18 @@ export const WarningsProvider = (props: WarningsProviderProps) => {
     });
   };
 
-  const has = (key: WarningKey) => warnings().has(key);
-  const hasAny = () => warnings().size > 0;
+  const has = (key: WarningKey) => {
+    if (key === WarningKey.ACCESSIBILITY) return accessibilityWarning();
+    return warnings().has(key);
+  };
+  const hasAny = () => accessibilityWarning() || warnings().size > 0;
   const hasForScope = (scope: WarningScope) => {
+    if (
+      accessibilityWarning() &&
+      scopeFor(WarningKey.ACCESSIBILITY) === scope
+    ) {
+      return true;
+    }
     for (const key of warnings()) {
       if (scopeFor(key) === scope) return true;
     }
@@ -77,13 +92,6 @@ export const WarningsProvider = (props: WarningsProviderProps) => {
   const recheckAccessibility = () => {
     runAccessibilityCheck();
   };
-
-  // Derive the warning from (trusted, snapToEdges): warn only when snap needs it.
-  createEffect(() => {
-    const trusted = accessibilityTrusted();
-    const needsIt = settings().snapToEdges;
-    setWarning(WarningKey.ACCESSIBILITY, needsIt && trusted === false);
-  });
 
   runAccessibilityCheck();
   accessibilityInterval = setInterval(

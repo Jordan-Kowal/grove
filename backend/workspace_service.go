@@ -22,13 +22,13 @@ import (
 type TaskStep string
 
 const (
-	StepGitWorktree   TaskStep = "git_worktree"
-	StepSetupScript   TaskStep = "setup_script"
-	StepArchiveScript TaskStep = "archive_script"
-	StepGitRemove     TaskStep = "git_remove"
-	StepRebase        TaskStep = "rebase"
-	StepCheckout      TaskStep = "checkout"
-	StepNewBranch     TaskStep = "new_branch"
+	StepGitWorktree    TaskStep = "git_worktree"
+	StepSetupScript    TaskStep = "setup_script"
+	StepTeardownScript TaskStep = "archive_script"
+	StepGitRemove      TaskStep = "git_remove"
+	StepRebase         TaskStep = "rebase"
+	StepCheckout       TaskStep = "checkout"
+	StepNewBranch      TaskStep = "new_branch"
 )
 
 // TaskStatus identifies the state of the current step.
@@ -248,12 +248,7 @@ func (s *WorkspaceService) CreateWorktree(workspaceName string, worktreeName str
 
 // RemoveWorktree runs archive script then removes worktree, async.
 func (s *WorkspaceService) RemoveWorktree(workspaceName string, worktreeName string) {
-	if err := validateName(workspaceName); err != nil {
-		s.emitTask(workspaceName, worktreeName, StepArchiveScript, StatusFailed, err.Error())
-		return
-	}
-	if err := validateName(worktreeName); err != nil {
-		s.emitTask(workspaceName, worktreeName, StepArchiveScript, StatusFailed, err.Error())
+	if !s.validatePair(workspaceName, worktreeName, StepTeardownScript) {
 		return
 	}
 	go s.removeWorktreeAsync(workspaceName, worktreeName)
@@ -261,12 +256,7 @@ func (s *WorkspaceService) RemoveWorktree(workspaceName string, worktreeName str
 
 // ForceRemoveWorktree skips archive and force-deletes.
 func (s *WorkspaceService) ForceRemoveWorktree(workspaceName string, worktreeName string) {
-	if err := validateName(workspaceName); err != nil {
-		s.emitTask(workspaceName, worktreeName, StepGitRemove, StatusFailed, err.Error())
-		return
-	}
-	if err := validateName(worktreeName); err != nil {
-		s.emitTask(workspaceName, worktreeName, StepGitRemove, StatusFailed, err.Error())
+	if !s.validatePair(workspaceName, worktreeName, StepGitRemove) {
 		return
 	}
 	go func() {
@@ -587,14 +577,14 @@ func (s *WorkspaceService) removeWorktreeAsync(workspaceName, worktreeName strin
 	worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
 
 	// Step 1: archive script (if configured)
-	if config.ArchiveScript != "" {
-		s.emitTask(workspaceName, worktreeName, StepArchiveScript, StatusInProgress, "")
-		err := s.runScriptTracked(workspaceName, worktreeName, config.ArchiveScript, worktreePath)
+	if config.TeardownScript != "" {
+		s.emitTask(workspaceName, worktreeName, StepTeardownScript, StatusInProgress, "")
+		err := s.runScriptTracked(workspaceName, worktreeName, config.TeardownScript, worktreePath)
 		if err != nil {
-			s.emitTask(workspaceName, worktreeName, StepArchiveScript, StatusFailed, err.Error())
+			s.emitTask(workspaceName, worktreeName, StepTeardownScript, StatusFailed, err.Error())
 			return
 		}
-		s.emitTask(workspaceName, worktreeName, StepArchiveScript, StatusSuccess, "")
+		s.emitTask(workspaceName, worktreeName, StepTeardownScript, StatusSuccess, "")
 	}
 
 	// Step 2: git worktree remove
@@ -739,7 +729,9 @@ func (s *WorkspaceService) forceRemoveWorktree(workspaceName, worktreeName strin
 		if removeErr := os.RemoveAll(worktreePath); removeErr != nil {
 			return fmt.Errorf("git worktree remove failed (%s) and cleanup failed: %w", strings.TrimSpace(string(out)), removeErr)
 		}
-		_ = exec.Command("git", "-C", config.RepoPath, "worktree", "prune").Run() // #nosec G204
+		if pruneErr := exec.Command("git", "-C", config.RepoPath, "worktree", "prune").Run(); pruneErr != nil { // #nosec G204
+			log.Printf("[grove] worktree prune failed after manual cleanup of %s/%s: %v", workspaceName, worktreeName, pruneErr)
+		}
 	}
 
 	// Clean up the branch so the name can be reused next time
@@ -762,6 +754,21 @@ func (s *WorkspaceService) emitTask(workspaceName, worktreeName string, step Tas
 
 func (s *WorkspaceService) refreshMonitor() {
 	application.Get().Event.Emit("refresh-requested", nil)
+}
+
+// validatePair validates workspace and worktree names. On failure, it emits a
+// failed task event tagged with `step` and returns false so the caller can
+// return early. Use when a public API needs both names to be well-formed.
+func (s *WorkspaceService) validatePair(workspaceName, worktreeName string, step TaskStep) bool {
+	if err := validateName(workspaceName); err != nil {
+		s.emitTask(workspaceName, worktreeName, step, StatusFailed, err.Error())
+		return false
+	}
+	if err := validateName(worktreeName); err != nil {
+		s.emitTask(workspaceName, worktreeName, step, StatusFailed, err.Error())
+		return false
+	}
+	return true
 }
 
 func (s *WorkspaceService) configPath(name string) string {

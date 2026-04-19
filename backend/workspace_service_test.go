@@ -344,3 +344,59 @@ func TestReadConfig(t *testing.T) {
 		t.Error("expected DeleteBranch=true")
 	}
 }
+
+// TestReadConfig_TeardownScript pins the TeardownScript field's JSON tag to
+// the legacy `archiveScript` key. The Go field was renamed from ArchiveScript
+// to TeardownScript in CODE-11; existing users' config.json files on disk
+// still use `archiveScript`, so the wire format must not change.
+func TestReadConfig_TeardownScript(t *testing.T) {
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, "ws")
+	if err := os.MkdirAll(projectDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(projectDir, "config.json")
+	payload := `{"repoPath":"/tmp/repo","setupScript":"echo hi","archiveScript":"echo bye"}`
+	if err := os.WriteFile(configPath, []byte(payload), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := &WorkspaceService{groveDir: tmpDir}
+	config := svc.readConfig("ws")
+
+	if config.SetupScript != "echo hi" {
+		t.Errorf("expected SetupScript=%q, got %q", "echo hi", config.SetupScript)
+	}
+	if config.TeardownScript != "echo bye" {
+		t.Errorf("expected TeardownScript=%q (from legacy archiveScript key), got %q", "echo bye", config.TeardownScript)
+	}
+}
+
+func TestValidatePair(t *testing.T) {
+	cases := []struct {
+		name          string
+		workspaceName string
+		worktreeName  string
+		want          bool
+	}{
+		{"both valid", "my-workspace", "feature_1", true},
+		{"empty workspace", "", "feature_1", false},
+		{"empty worktree", "my-workspace", "", false},
+		{"invalid workspace chars", "bad space", "feature_1", false},
+		{"invalid worktree chars", "my-workspace", "feat/slash", false},
+		{"dot workspace", ".", "feature_1", false},
+		{"dot-dot worktree", "my-workspace", "..", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			wsErr := validateName(tc.workspaceName)
+			wtErr := validateName(tc.worktreeName)
+			pairOK := wsErr == nil && wtErr == nil
+			if pairOK != tc.want {
+				t.Errorf("validateName pair for (%q, %q) = %v, want %v (ws err=%v, wt err=%v)",
+					tc.workspaceName, tc.worktreeName, pairOK, tc.want, wsErr, wtErr)
+			}
+		})
+	}
+}

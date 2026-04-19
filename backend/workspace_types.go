@@ -2,11 +2,11 @@ package backend
 
 // WorkspaceConfig is the per-workspace configuration stored in config.json.
 type WorkspaceConfig struct {
-	RepoPath      string `json:"repoPath"`
-	BaseBranch    string `json:"baseBranch"`
-	SetupScript   string `json:"setupScript"`
-	ArchiveScript string `json:"archiveScript"`
-	DeleteBranch  bool   `json:"deleteBranch"`
+	RepoPath       string `json:"repoPath"`
+	BaseBranch     string `json:"baseBranch"`
+	SetupScript    string `json:"setupScript"`
+	TeardownScript string `json:"archiveScript"`
+	DeleteBranch   bool   `json:"deleteBranch"`
 }
 
 // Workspace represents a registered git repository with its worktrees.
