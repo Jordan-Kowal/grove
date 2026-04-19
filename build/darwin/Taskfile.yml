@@ -4,9 +4,8 @@ includes:
   common: ../Taskfile.yml
 
 vars:
-  # Code signing identity — override via SIGN_IDENTITY env var.
-  # Format: "Developer ID Application: Your Name (TEAMID)"
-  # Falls back to ad-hoc ("-") for local dev builds without a cert.
+  # Code signing identity — defaults to ad-hoc ("-") so local builds work
+  # without a cert. Real signing identity is injected by `release:local` or CI.
   SIGN_IDENTITY: '{{.SIGN_IDENTITY | default "-"}}'
   # Notarization keychain profile (stored via `xcrun notarytool store-credentials`).
   # Override via NOTARY_PROFILE env var.

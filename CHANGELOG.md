@@ -11,6 +11,8 @@
 ## TBD
 
 - 🚀 Settings now surface warnings when the Accessibility permission is missing or the configured editor app is not installed
+- 🔧 Added `task release:local` + `.env` support for producing a signed, notarized DMG locally (see CONTRIBUTING.md)
+- 🔧 Pinned Wails and Task CLI versions in CI; added `scripts/check-ci-pins.sh` lint step that enforces CI pins match `go.mod`
 
 ## 0.3.0 - 2026-04-19
 

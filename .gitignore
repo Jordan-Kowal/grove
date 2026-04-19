@@ -36,6 +36,7 @@ build/darwin/Assets.car
 
 # Secrets / credentials
 .env*
+!.env.example
 *.pem
 *.key
 

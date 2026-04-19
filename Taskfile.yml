@@ -1,5 +1,7 @@
 version: '3'
 
+dotenv: ['.env']
+
 includes:
   common: ./build/Taskfile.yml
   darwin: ./build/darwin/Taskfile.yml
@@ -32,17 +34,28 @@ tasks:
     cmds:
       - task: "darwin:run"
 
+  release:local:
+    summary: Builds a signed+notarized local release DMG (reads SIGN_IDENTITY + NOTARY_PROFILE from .env)
+    preconditions:
+      - sh: test -n "$SIGN_IDENTITY"
+        msg: "SIGN_IDENTITY not set. Copy .env.example to .env."
+      - sh: test -n "$NOTARY_PROFILE"
+        msg: "NOTARY_PROFILE not set. Copy .env.example to .env."
+    cmds:
+      - task: "darwin:release"
+
   dev:
     summary: Runs the application in development mode
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 
   lint:
-    summary: Runs all linters (biome, tsc, golangci-lint)
+    summary: Runs all linters (biome, tsc, golangci-lint, CI pins)
     cmds:
       - bun run biome:check
       - bun run tsc
       - golangci-lint run
+      - sh scripts/check-ci-pins.sh
 
   test:
     summary: Runs all tests
