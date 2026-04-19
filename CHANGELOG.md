@@ -11,6 +11,7 @@
 ## TBD
 
 - 🚀 Settings now surface warnings when the Accessibility permission is missing or the configured editor app is not installed
+- ✨ Improved performance through various changes (log view cap, bounded git concurrency, refresh debounce, race fix)
 - 🔧 Added `task release:local` + `.env` support for producing a signed, notarized DMG locally (see CONTRIBUTING.md)
 - 🔧 Pinned Wails and Task CLI versions in CI; added `scripts/check-ci-pins.sh` lint step that enforces CI pins match `go.mod`
 - 🔧 Documentation refresh across README, CONTRIBUTING, and CLAUDE.md

@@ -29,6 +29,8 @@ import {
   type DashboardContextProps,
 } from "./DashboardContext";
 
+const SCRIPT_LOGS_MAX = 5000;
+
 export const useDashboardContext = (): DashboardContextProps => {
   const context = useContext(DashboardContext);
   if (!context) {
@@ -136,10 +138,16 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
           text,
           timestamp: e.timestamp,
         }));
-        setScriptLogs((prev) => ({
-          ...prev,
-          [key]: [...(prev[key] ?? []), ...newLines],
-        }));
+        setScriptLogs((prev) => {
+          const combined = [...(prev[key] ?? []), ...newLines];
+          // Cap at 5k lines to keep append cost + <For> re-render bounded on
+          // chatty scripts (e.g. npm install can emit 10k+ lines).
+          const capped =
+            combined.length > SCRIPT_LOGS_MAX
+              ? combined.slice(-SCRIPT_LOGS_MAX)
+              : combined;
+          return { ...prev, [key]: capped };
+        });
       },
     );
 

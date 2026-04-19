@@ -19,6 +19,7 @@ const (
 	editorPollInterval = 5 * time.Second
 	gitPollInterval    = 10 * time.Second
 	livenessCheckEvery = 10 * time.Second
+	refreshDebounce    = 200 * time.Millisecond
 )
 
 // soundPlayer is the subset of SoundService used by MonitorService.
@@ -52,6 +53,8 @@ type MonitorService struct {
 	readSessions      func() []groveSession   // injectable for testing; defaults to readGroveSessions
 	stateVersion      uint64                  // bumped on any observable state change; protected by mu
 	lastLivenessCheck time.Time               // last time session PIDs were probed
+	refreshTimer      *time.Timer             // trailing-edge debounce for RefreshNow; protected by refreshMu
+	refreshMu         sync.Mutex              // guards refreshTimer
 }
 
 // NewMonitorService creates a new MonitorService.
@@ -125,6 +128,11 @@ func (s *MonitorService) installHook() {
 // ServiceShutdown stops the background goroutines.
 func (s *MonitorService) ServiceShutdown() error {
 	s.stopOnce.Do(func() { close(s.stopCh) })
+	s.refreshMu.Lock()
+	if s.refreshTimer != nil {
+		s.refreshTimer.Stop()
+	}
+	s.refreshMu.Unlock()
 	return nil
 }
 
@@ -142,8 +150,21 @@ func (s *MonitorService) Snapshot() []Workspace {
 	return result
 }
 
-// RefreshNow triggers an immediate refresh and event emission.
+// RefreshNow coalesces rapid mutations (e.g. a burst of CloseEditorWindow
+// calls) into a single trailing refresh. The refresh runs refreshDebounce
+// after the last call, sparing the git fan-out from thrash.
 func (s *MonitorService) RefreshNow() {
+	s.refreshMu.Lock()
+	if s.refreshTimer != nil {
+		s.refreshTimer.Stop()
+	}
+	s.refreshTimer = time.AfterFunc(refreshDebounce, s.refreshNowImmediate)
+	s.refreshMu.Unlock()
+}
+
+// refreshNowImmediate runs the full refresh suite without debounce.
+// Exposed only so the debounce timer can fire it.
+func (s *MonitorService) refreshNowImmediate() {
 	s.refreshWorkspaces()
 	s.refreshGit()
 	s.refreshClaude()
@@ -206,7 +227,8 @@ func (s *MonitorService) pollEditor() {
 }
 
 // pollGit runs git diff/status on all worktrees every 10s.
-// Skips the tick if the previous scan is still running (slow monorepo guard).
+// refreshGit acquires s.gitBusy itself, so overlapping scans are serialized
+// across all entry points (pollGit + RefreshNow + startup).
 func (s *MonitorService) pollGit() {
 	ticker := time.NewTicker(gitPollInterval)
 	defer ticker.Stop()
@@ -216,11 +238,7 @@ func (s *MonitorService) pollGit() {
 		case <-s.stopCh:
 			return
 		case <-ticker.C:
-			if !s.gitBusy.TryLock() {
-				continue // previous scan still running, skip
-			}
 			s.refreshGit()
-			s.gitBusy.Unlock()
 			prev = s.emitIfChanged(prev)
 		}
 	}
@@ -316,10 +334,20 @@ func workspaceStructureChanged(oldWs, newWs []Workspace) bool {
 
 // --- Git diff refresh ---
 
+// gitRefreshConcurrency caps how many `git` subprocesses run in parallel
+// during a single refreshGit pass. Prevents CPU + index-lock thrash when a
+// workspace has many worktrees.
+const gitRefreshConcurrency = 8
+
 // refreshGit updates branch names and git diff stats on all cached worktrees.
 // Branch names are read from the filesystem (no process spawn).
-// Diff stats are fetched concurrently via git commands.
+// Diff stats are fetched concurrently via git commands, capped at
+// gitRefreshConcurrency to bound CPU load. s.gitBusy serializes overlapping
+// calls so two scans never race on s.workspaces.
 func (s *MonitorService) refreshGit() {
+	s.gitBusy.Lock()
+	defer s.gitBusy.Unlock()
+
 	s.mu.RLock()
 	var paths []string
 	for _, ws := range s.workspaces {
@@ -336,12 +364,15 @@ func (s *MonitorService) refreshGit() {
 	}
 	results := make([]gitData, len(paths))
 
-	// Diff stats: concurrent git commands (the expensive part)
+	// Bounded concurrency: at most gitRefreshConcurrency git subprocesses at once.
+	sem := make(chan struct{}, gitRefreshConcurrency)
 	var wg sync.WaitGroup
 	wg.Add(len(paths))
 	for i, p := range paths {
 		go func(idx int, dir string) {
 			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			f, ins, d := getGitDiffStats(dir)
 			results[idx] = gitData{
 				branch: getGitBranch(dir),

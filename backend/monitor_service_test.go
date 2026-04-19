@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -41,6 +42,57 @@ func newTestMonitor(workspaces []Workspace, sessions func() []groveSession) (*Mo
 		readSessions:   sessions,
 	}
 	return svc, sound, tray
+}
+
+// TestRefreshGit_SerializesConcurrentCalls verifies that overlapping refreshGit
+// calls do not race on s.workspaces. Regression coverage for PERF-2: gitBusy
+// was declared on the struct but never acquired before this fix.
+func TestRefreshGit_SerializesConcurrentCalls(t *testing.T) {
+	// Build a fake WorkspaceService just enough for refreshGit's struct reads.
+	svc, _, _ := newTestMonitor(nil, func() []groveSession { return nil })
+	svc.workspaces = []Workspace{{
+		MainWorktree: WorktreeInfo{Path: "/nonexistent-a"},
+		Worktrees: []WorktreeInfo{
+			{Path: "/nonexistent-b"},
+			{Path: "/nonexistent-c"},
+		},
+	}}
+
+	// 10 concurrent refreshes — with -race enabled, torn writes on s.workspaces
+	// entries would trip the detector. Paths don't exist so git calls return
+	// zero values quickly; the point is to exercise the lock, not git output.
+	var wg sync.WaitGroup
+	for range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			svc.refreshGit()
+		}()
+	}
+	wg.Wait()
+}
+
+// TestRefreshNow_Debounced verifies that many rapid RefreshNow calls fire only
+// one trailing refresh within the debounce window. Regression coverage for
+// PERF-7.
+func TestRefreshNow_Debounced(t *testing.T) {
+	svc, _, _ := newTestMonitor(nil, func() []groveSession { return nil })
+	// Don't let the timer actually fire during the test — it would hit
+	// application.Get() which isn't wired in tests. We only assert that
+	// multiple RefreshNow calls collapse into a single pending timer.
+	for range 50 {
+		svc.RefreshNow()
+	}
+	svc.refreshMu.Lock()
+	timer := svc.refreshTimer
+	svc.refreshMu.Unlock()
+	if timer == nil {
+		t.Fatal("expected RefreshNow to schedule a timer, got nil")
+	}
+	// Cancel the trailing call so it never tries to emit Wails events.
+	if !timer.Stop() {
+		t.Error("expected timer still pending after burst of RefreshNow calls")
+	}
 }
 
 // --- refreshClaude state machine tests ---

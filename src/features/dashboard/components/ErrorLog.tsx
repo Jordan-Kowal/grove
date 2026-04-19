@@ -2,6 +2,7 @@ import { ArrowLeft, Check, RefreshCw, Square, X } from "lucide-solid";
 import {
   type Component,
   createEffect,
+  createMemo,
   createSignal,
   For,
   Show,
@@ -34,7 +35,9 @@ const formatTime = (ms: number) => {
 const AnsiLine: Component<{ line: LogLine; showTimestamp: boolean }> = (
   props,
 ) => {
-  const segments = () => parseAnsiToSegments(props.line.text);
+  // Memo-per-instance: <For> keys line components stably, so historic lines
+  // parse once and never re-parse when new lines arrive.
+  const segments = createMemo(() => parseAnsiToSegments(props.line.text));
 
   return (
     <div class="flex">
