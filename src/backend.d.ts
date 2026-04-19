@@ -4,6 +4,7 @@ declare module "@backend" {
   export const AppService: {
     GetVersion(): Promise<string>;
     InstallUpdate(version: string): Promise<void>;
+    IsAccessibilityTrusted(): Promise<boolean>;
   };
 
   export const MonitorService: {

@@ -1,50 +1,61 @@
-import { EditorService, SnapService, SoundService } from "@backend";
+import { SnapService, SoundService } from "@backend";
 import {
   Bell,
   Check,
   Code,
-  ExternalLink,
   Info,
   Monitor,
   Play,
+  RotateCw,
   X,
 } from "lucide-solid";
 import {
   type Component,
   createSignal,
   For,
+  Match,
   onCleanup,
   onMount,
   Show,
+  Switch,
 } from "solid-js";
 import { Section } from "@/components/ui";
-import { THEMES, type Theme, useSettingsContext } from "@/contexts";
+import {
+  SoundMode,
+  THEMES,
+  type Theme,
+  useSettingsContext,
+  useWarningsContext,
+  WarningKey,
+} from "@/contexts";
 import { VersionStatus } from "./VersionStatus";
+
+const EDITOR_PENDING_DELAY_MS = 500;
 
 export const GeneralSettings: Component = () => {
   const { settings, updateSetting } = useSettingsContext();
+  const warnings = useWarningsContext();
   const [sounds, setSounds] = createSignal<string[]>([]);
-  const [editorValid, setEditorValid] = createSignal<boolean | null>(null);
-  let editorTimer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(editorTimer));
+  const [editorPending, setEditorPending] = createSignal(false);
+  let editorPendingTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(editorPendingTimer));
 
-  const checkEditor = async (name: string) => {
-    if (!name) return;
-    const valid = await EditorService.IsValidApp(name);
-    setEditorValid(valid);
+  const markEditorPending = () => {
+    clearTimeout(editorPendingTimer);
+    setEditorPending(true);
+    editorPendingTimer = setTimeout(
+      () => setEditorPending(false),
+      EDITOR_PENDING_DELAY_MS,
+    );
   };
 
-  const validateEditorDebounced = (name: string) => {
-    setEditorValid(null);
-    clearTimeout(editorTimer);
-    if (!name) return;
-    editorTimer = setTimeout(() => checkEditor(name), 500);
-  };
+  const editorInvalid = () => warnings.has(WarningKey.EDITOR_NOT_FOUND);
+  const editorValid = () =>
+    !editorPending() && !!settings().editorApp && !editorInvalid();
 
   onMount(async () => {
     const list = await SoundService.GetSounds();
     setSounds(list);
-    checkEditor(settings().editorApp);
   });
 
   const handlePlayPreview = () => {
@@ -88,34 +99,68 @@ export const GeneralSettings: Component = () => {
           />
         </label>
 
-        <label class="flex items-center justify-between cursor-pointer">
-          <div>
-            <span class="text-xs font-medium opacity-60">Dock to edge</span>
-            <p class="text-[10px] opacity-40">
-              Snap to screen edge at full height. Opens editors in remaining
-              space.
-            </p>
+        <div class="relative">
+          <Show when={warnings.has(WarningKey.ACCESSIBILITY)}>
+            <span class="absolute -left-3 top-1.5 size-1.5 rounded-full bg-error" />
+          </Show>
+          <label class="flex items-center justify-between cursor-pointer">
+            <div class="space-y-0.5">
+              <span class="text-xs font-medium opacity-60">Dock to edge</span>
+              <p class="text-[10px] opacity-40">
+                Snap to screen edge at full height. Opens editors in remaining
+                space.
+              </p>
+              <p class="text-[10px] opacity-40">
+                Requires Accessibility permission.{" "}
+                <button
+                  type="button"
+                  class="underline cursor-pointer hover:opacity-100"
+                  onClick={() => SnapService.OpenAccessibilitySettings()}
+                >
+                  Open Settings
+                </button>
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              class="toggle toggle-sm toggle-primary"
+              checked={settings().snapToEdges}
+              onChange={(e) =>
+                updateSetting("snapToEdges", e.currentTarget.checked)
+              }
+            />
+          </label>
+
+          <div class="mt-1 flex items-center justify-between gap-2 text-[10px]">
+            <span class="flex items-center gap-1 opacity-60">
+              Permission:
+              <Switch>
+                <Match when={warnings.isAccessibilityTrusted() === true}>
+                  <span class="text-success inline-flex items-center gap-0.5">
+                    <Check size={10} /> granted
+                  </span>
+                </Match>
+                <Match when={warnings.isAccessibilityTrusted() === false}>
+                  <span class="text-error inline-flex items-center gap-0.5">
+                    <X size={10} /> not granted
+                  </span>
+                </Match>
+                <Match when={warnings.isAccessibilityTrusted() === null}>
+                  <span class="opacity-60">checking…</span>
+                </Match>
+              </Switch>
+            </span>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs gap-1 text-[10px] opacity-60 hover:opacity-100"
+              onClick={() => warnings.recheckAccessibility()}
+              title="Auto-checked every 60 seconds"
+            >
+              <RotateCw size={10} />
+              Recheck
+            </button>
           </div>
-          <input
-            type="checkbox"
-            class="toggle toggle-sm toggle-primary"
-            checked={settings().snapToEdges}
-            onChange={(e) =>
-              updateSetting("snapToEdges", e.currentTarget.checked)
-            }
-          />
-        </label>
-        <button
-          type="button"
-          class="-mt-2 flex cursor-pointer items-center gap-2 text-[10px] opacity-40 hover:opacity-60"
-          onClick={() => SnapService.OpenAccessibilitySettings()}
-        >
-          <ExternalLink size={10} class="shrink-0" />
-          <span>
-            Requires Accessibility permission.{" "}
-            <span class="underline">Open Settings</span>
-          </span>
-        </button>
+        </div>
       </Section>
 
       {/* Notifications */}
@@ -126,19 +171,16 @@ export const GeneralSettings: Component = () => {
             class="select select-bordered select-sm w-full text-xs"
             value={settings().soundMode}
             onChange={(e) =>
-              updateSetting(
-                "soundMode",
-                e.currentTarget.value as "never" | "permission" | "all",
-              )
+              updateSetting("soundMode", e.currentTarget.value as SoundMode)
             }
           >
-            <option value="never">Never</option>
-            <option value="all">When done or needs input</option>
-            <option value="permission">Only when needs input</option>
+            <option value={SoundMode.NEVER}>Never</option>
+            <option value={SoundMode.ALL}>When done or needs input</option>
+            <option value={SoundMode.PERMISSION}>Only when needs input</option>
           </select>
         </label>
 
-        <Show when={settings().soundMode !== "never"}>
+        <Show when={settings().soundMode !== SoundMode.NEVER}>
           <div class="flex items-center gap-2">
             <select
               class="select select-bordered select-sm flex-1 text-xs"
@@ -200,7 +242,10 @@ export const GeneralSettings: Component = () => {
 
       {/* Editor */}
       <Section title="Editor" icon={<Code size={12} />}>
-        <div class="space-y-1">
+        <div class="relative space-y-1">
+          <Show when={warnings.has(WarningKey.EDITOR_NOT_FOUND)}>
+            <span class="absolute -left-3 top-1.5 size-1.5 rounded-full bg-error" />
+          </Show>
           <span class="text-xs font-medium opacity-60">Default editor</span>
           <div class="flex items-center gap-2">
             <input
@@ -210,17 +255,18 @@ export const GeneralSettings: Component = () => {
               onInput={(e) => {
                 const value = e.currentTarget.value;
                 updateSetting("editorApp", value);
-                validateEditorDebounced(value);
+                warnings.validateEditor(value);
+                markEditorPending();
               }}
               placeholder="Zed"
             />
-            <Show when={editorValid() === null && settings().editorApp}>
+            <Show when={editorPending() && settings().editorApp}>
               <span class="loading loading-spinner loading-xs shrink-0 opacity-40" />
             </Show>
-            <Show when={editorValid() === true}>
+            <Show when={editorValid()}>
               <Check size={14} class="text-success shrink-0" />
             </Show>
-            <Show when={editorValid() === false}>
+            <Show when={!editorPending() && editorInvalid()}>
               <X size={14} class="text-error shrink-0" />
             </Show>
           </div>

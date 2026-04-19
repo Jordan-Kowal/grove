@@ -8,6 +8,10 @@
 - 🔧 Others
 - 💥 Breaking
 
+## TBD
+
+- 🚀 Settings now surface warnings when the Accessibility permission is missing or the configured editor app is not installed
+
 ## 0.3.0 - 2026-04-19
 
 - 🚀 App is now signed with Apple Developer ID and notarized — no more Gatekeeper warnings or `xattr` workarounds

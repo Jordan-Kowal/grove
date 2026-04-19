@@ -40,11 +40,17 @@ export const THEMES = [
 
 export type Theme = (typeof THEMES)[number];
 
+export enum SoundMode {
+  NEVER = "never",
+  PERMISSION = "permission",
+  ALL = "all",
+}
+
 export type Settings = {
   theme: Theme;
   alwaysOnTop: boolean;
   snapToEdges: boolean;
-  soundMode: "never" | "permission" | "all";
+  soundMode: SoundMode;
   soundName: string;
   doneDuration: number; // minutes; 0 = instant, -1 = persist until clicked
   systemTrayEnabled: boolean;
@@ -55,7 +61,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "forest",
   alwaysOnTop: true,
   snapToEdges: true,
-  soundMode: "all",
+  soundMode: SoundMode.ALL,
   soundName: "Glass",
   doneDuration: 30,
   systemTrayEnabled: false,

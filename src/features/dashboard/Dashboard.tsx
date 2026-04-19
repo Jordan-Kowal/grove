@@ -1,5 +1,6 @@
 import { Plus, Settings } from "lucide-solid";
 import { type Component, For, Show } from "solid-js";
+import { useWarningsContext } from "@/contexts";
 import { UpdateSnackbar, WorkspaceSection } from "./components";
 import { useDashboardContext } from "./contexts";
 
@@ -10,6 +11,7 @@ type DashboardProps = {
 
 export const Dashboard: Component<DashboardProps> = (props) => {
   const ctx = useDashboardContext();
+  const warnings = useWarningsContext();
 
   return (
     <div class="flex flex-col h-screen">
@@ -22,11 +24,14 @@ export const Dashboard: Component<DashboardProps> = (props) => {
         <div class="flex items-center gap-0.5 no-drag">
           <button
             type="button"
-            class="btn btn-ghost btn-xs p-1 h-auto min-h-0 opacity-40 hover:opacity-100"
+            class="btn btn-ghost btn-xs p-1 h-auto min-h-0 opacity-40 hover:opacity-100 relative"
             onClick={props.onOpenSettings}
             title="Settings"
           >
             <Settings size={14} />
+            <Show when={warnings.hasAny()}>
+              <span class="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-error" />
+            </Show>
           </button>
           <button
             type="button"

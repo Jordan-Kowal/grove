@@ -25,6 +25,11 @@ func (s *AppService) GetVersion() string {
 	return s.version
 }
 
+// IsAccessibilityTrusted reports whether Grove has been granted Accessibility permission.
+func (s *AppService) IsAccessibilityTrusted() bool {
+	return IsAccessibilityTrusted()
+}
+
 // InstallUpdate shows a native confirmation dialog and, if confirmed, spawns a background shell
 // that downloads and runs the pinned update installer, then quits the app.
 func (s *AppService) InstallUpdate(version string) {

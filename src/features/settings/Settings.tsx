@@ -6,20 +6,30 @@ import {
   For,
   Match,
   onMount,
+  Show,
   Switch,
 } from "solid-js";
+import { useWarningsContext, WarningScope } from "@/contexts";
 import type { Workspace } from "@/types/types";
 import { GeneralSettings } from "./components/GeneralSettings";
 import { WorkspaceSettings } from "./components/WorkspaceSettings";
 
-type ActiveTab = { kind: "general" } | { kind: "workspace"; name: string };
+enum TabKind {
+  GENERAL = "general",
+  WORKSPACE = "workspace",
+}
 
-const GENERAL_TAB: ActiveTab = { kind: "general" };
+type ActiveTab =
+  | { kind: TabKind.GENERAL }
+  | { kind: TabKind.WORKSPACE; name: string };
+
+const GENERAL_TAB: ActiveTab = { kind: TabKind.GENERAL };
 
 type TabButtonProps = {
   active: boolean;
   onClick: () => void;
   children: string;
+  showBadge?: boolean;
 };
 
 const tabClass = (active: boolean) =>
@@ -29,7 +39,12 @@ const tabClass = (active: boolean) =>
 
 const TabButton: Component<TabButtonProps> = (props) => (
   <button type="button" class={tabClass(props.active)} onClick={props.onClick}>
-    {props.children}
+    <span class="flex items-center gap-1.5">
+      <span>{props.children}</span>
+      <Show when={props.showBadge}>
+        <span class="inline-block size-1.5 rounded-full bg-error" />
+      </Show>
+    </span>
   </button>
 );
 
@@ -40,11 +55,12 @@ type SettingsProps = {
 export const Settings: Component<SettingsProps> = (props) => {
   const [workspaces, setWorkspaces] = createSignal<Workspace[]>([]);
   const [activeTab, setActiveTab] = createSignal<ActiveTab>(GENERAL_TAB);
+  const warnings = useWarningsContext();
 
-  const isGeneral = () => activeTab().kind === "general";
+  const isGeneral = () => activeTab().kind === TabKind.GENERAL;
   const workspaceName = () => {
     const tab = activeTab();
-    return tab.kind === "workspace" ? tab.name : "";
+    return tab.kind === TabKind.WORKSPACE ? tab.name : "";
   };
 
   onMount(async () => {
@@ -75,6 +91,7 @@ export const Settings: Component<SettingsProps> = (props) => {
           <TabButton
             active={isGeneral()}
             onClick={() => setActiveTab(GENERAL_TAB)}
+            showBadge={warnings.hasForScope(WarningScope.GENERAL)}
           >
             General
           </TabButton>
@@ -90,7 +107,7 @@ export const Settings: Component<SettingsProps> = (props) => {
               <TabButton
                 active={workspaceName() === ws.name}
                 onClick={() =>
-                  setActiveTab({ kind: "workspace", name: ws.name })
+                  setActiveTab({ kind: TabKind.WORKSPACE, name: ws.name })
                 }
               >
                 {ws.name}
