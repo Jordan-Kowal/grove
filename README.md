@@ -24,8 +24,7 @@
   - [✨ Features](#-features)
   - [📦 Installation](#-installation)
     - [Download](#download)
-    - [First Run](#first-run)
-  - [🔗 Claude Code Hook Setup](#-claude-code-hook-setup)
+    - [Requirements](#requirements)
   - [🚀 How It Works](#-how-it-works)
   - [⚙️ Settings](#️-settings)
     - [General Settings](#general-settings)
@@ -63,19 +62,20 @@
 
 ### Download
 
-1. Go to the [Releases page](https://github.com/Jordan-Kowal/grove/releases)
-2. Download the latest `Grove-x.x.x.dmg` file
-3. Double-click the DMG to open it
-4. Drag `Grove.app` onto the `Applications` folder shortcut
-5. Launch Grove from Applications or Spotlight
+**[⬇️ Download Grove 0.2.3 for macOS](https://github.com/Jordan-Kowal/grove/releases/download/0.2.3/Grove-0.2.3.dmg)**
 
-### First Run
+1. Click the download link above (or grab it from the [Releases page](https://github.com/Jordan-Kowal/grove/releases))
+2. Double-click the DMG to open it
+3. Drag `Grove.app` onto the `Applications` folder shortcut
+4. Launch Grove from Applications or Spotlight
 
-Grove is signed and notarized by Apple, so it should launch without any security warnings. On first launch, Grove may request Accessibility permission for window management — grant it in **System Settings** → **Privacy & Security** → **Accessibility**.
+### Requirements
 
-## 🔗 Claude Code Hook Setup
+Grove is signed and notarized by Apple, so it launches without any security warnings. On first run, a few items need your attention:
 
-Grove automatically installs a hook script at `~/.grove/hook.sh` and merges the required hooks into `~/.claude/settings.json` on startup. No manual configuration needed.
+- **Claude Code hooks** — Grove installs a hook script at `~/.grove/hook.sh` and merges required hooks into `~/.claude/settings.json` automatically on startup. Grove relies on these hooks to track session state — keep them enabled.
+- **AppleEvents permission** — Grove will prompt you the first time it tries to control your editor (e.g. opening a worktree in Zed/VSCode). Click **OK** on the native dialog.
+- **Accessibility permission** — required only for Sidebar mode ("Dock to edge"). Enable it manually via **System Settings** → **Privacy & Security** → **Accessibility**. A direct link is available in Grove's settings.
 
 ## 🚀 How It Works
 
@@ -90,15 +90,15 @@ Grove automatically installs a hook script at `~/.grove/hook.sh` and merges the 
 
 ### General Settings
 
-| Section       | Setting            | Default                  | Description                                                         |
-| ------------- | ------------------ | ------------------------ | ------------------------------------------------------------------- |
-| Display       | Theme              | Forest                   | Switch between Nord and Forest themes                               |
-| Display       | Keep window on top | On                       | Keep Grove above other windows                                      |
-| Display       | Dock to edge       | On                       | Snap to screen edge at full height, open editors in remaining space |
-| Notifications | Play sound           | When done or needs input | Never, when done or needs input, or only when needs input           |
+| Section       | Setting               | Default                  | Description                                                           |
+| ------------- | --------------------- | ------------------------ | --------------------------------------------------------------------- |
+| Display       | Theme                 | Forest                   | Switch between Nord and Forest themes                                 |
+| Display       | Keep window on top    | On                       | Keep Grove above other windows                                        |
+| Display       | Dock to edge          | On                       | Snap to screen edge at full height, open editors in remaining space   |
+| Notifications | Play sound            | When done or needs input | Never, when done or needs input, or only when needs input             |
 | Notifications | "Done" badge duration | 30 minutes               | How long the done badge persists: instant, 1–60 min, or until clicked |
-| Notifications | Show menu bar icon   | Off                      | System tray icon to show/hide Grove                                 |
-| Editor        | Default editor     | Zed                      | macOS app name (e.g. Zed, Visual Studio Code, Cursor)               |
+| Notifications | Show menu bar icon    | Off                      | System tray icon to show/hide Grove                                   |
+| Editor        | Default editor        | Zed                      | macOS app name (e.g. Zed, Visual Studio Code, Cursor)                 |
 
 ### Workspace Settings
 

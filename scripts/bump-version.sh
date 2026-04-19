@@ -42,6 +42,13 @@ for plist in "$ROOT/build/darwin/Info.plist" "$ROOT/build/darwin/Info.dev.plist"
   echo "  ✓ $(echo "$plist" | sed "s|$ROOT/||")"
 done
 
+# Update README download button (link + label)
+sed -i '' \
+  -e "s|Download Grove ${OLD_VERSION}|Download Grove ${NEW_VERSION}|g" \
+  -e "s|releases/download/${OLD_VERSION}/Grove-${OLD_VERSION}\.dmg|releases/download/${NEW_VERSION}/Grove-${NEW_VERSION}.dmg|g" \
+  "$ROOT/README.md"
+echo "  ✓ README.md"
+
 if grep -q "## TBD" "$ROOT/CHANGELOG.md"; then
   TODAY=$(date +%Y-%m-%d)
   sed -i '' "s/## TBD/## ${NEW_VERSION} - ${TODAY}/" "$ROOT/CHANGELOG.md"
@@ -53,7 +60,7 @@ fi
 # Git commit + tag + push
 echo ""
 cd "$ROOT"
-git add package.json CHANGELOG.md build/config.yml main.go build/darwin/Info.plist build/darwin/Info.dev.plist
+git add package.json CHANGELOG.md build/config.yml main.go build/darwin/Info.plist build/darwin/Info.dev.plist README.md
 git commit -m "chore: bump version to ${NEW_VERSION}"
 
 echo ""
