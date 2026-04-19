@@ -8,7 +8,7 @@
 - 🔧 Others
 - 💥 Breaking
 
-## TBD
+## 0.3.1 - 2026-04-19
 
 - 🚀 Settings now surface warnings when the Accessibility permission is missing or the configured editor app is not installed
 - ✨ Improved performance through various changes (log view cap, bounded git concurrency, refresh debounce, race fix)
