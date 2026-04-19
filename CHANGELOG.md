@@ -8,7 +8,7 @@
 - 🔧 Others
 - 💥 Breaking
 
-## TBD
+## 0.3.0 - 2026-04-19
 
 - 🚀 App is now signed with Apple Developer ID and notarized — no more Gatekeeper warnings or `xattr` workarounds
 - 🚀 Installation via `.dmg` with drag-to-Applications window (replaces `.zip` + setup script)
