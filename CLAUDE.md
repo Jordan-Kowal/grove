@@ -19,7 +19,7 @@ Tech stack: SolidJS, Vite, Tailwind CSS v4 + DaisyUI, Wails v3 (Go), Lucide Soli
 
 ```txt
 src/
-  features/{name}/       # Feature-specific: components/, contexts/
+  features/{name}/       # Feature-specific: components/ (always), contexts/ (only when feature-local state is needed — e.g. dashboard/)
   components/ui/         # Shared UI primitives
   contexts/              # Shared contexts (Context.ts + Provider.tsx pattern)
   hooks/                 # Shared hooks
@@ -155,8 +155,11 @@ src/components/index.ts           (no root barrel)
 
 ## Documentation
 
-After completing any change, check whether documentation needs updating:
+**You own documentation.** After any impactful change — feature, enhancement, bugfix, refactor, setting change, renamed command, new helper script — you MUST check whether these four files need updating and update them as part of the same change. Do not defer this to a follow-up.
 
-- **README.md** — update if features, settings, or "How It Works" internals changed
-- **CHANGELOG.md** — add an entry for any user-facing change (new feature, enhancement, bugfix, removal)
-- **CONTRIBUTING.md** — update if prerequisites, setup steps, or developer commands changed
+- **README.md** — update if user-facing features, settings, installation, requirements, or "How It Works" internals changed. Keep the Features list, Settings tables, and How It Works section in sync with actual behavior.
+- **CHANGELOG.md** — add an entry under the `TBD` section for every user-facing change (feature, enhancement, bugfix, breaking change, removal). Use the emoji legend at the top. Non-user-facing internal refactors do not need an entry.
+- **TODO.md** — remove items you complete. Add items for known follow-ups discovered during the change.
+- **CONTRIBUTING.md** — update if prerequisites, setup steps, developer commands, environment variables, or helper scripts changed.
+
+Rule of thumb: if a contributor or user would be surprised by the new behavior after reading the current docs, the docs are out of date and you must fix them now.

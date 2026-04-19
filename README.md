@@ -52,8 +52,10 @@
 ## ✨ Features
 
 - **Worktree management**: Create and remove worktrees per workspace, with git diff stats, custom setup and teardown scripts, live logs, and quick actions (rebase on branch, checkout branch, start fresh from new branch)
-- **Claude Code monitoring**: Auto-detect Claude Code sessions in worktree directories and the main repo, display live status, and notify with sound and dock badge
-- **Open in IDE**: Pick your editor (Zed, VS Code, Cursor, etc.) and open any worktree or workspace root in one click
+- **Main repo tracking**: The main working tree is always visible as a card alongside worktrees and tracked the same way (git diff, Claude sessions, editor badge)
+- **Claude Code monitoring**: Auto-detect Claude Code sessions in worktree directories and the main repo, display live status, and notify with sound and dock badge. Multi-session badge with per-status hover breakdown when several sessions run in one directory
+- **Open in IDE**: Pick your editor (Zed, VS Code, Cursor, etc.) and open any worktree or workspace root in one click. Cards show an "active" badge when the editor window is currently open, and you can close it from the card's context menu
+- **Context-menu bulk actions**: Remove all worktrees, close all editor windows for a workspace, sync main checkout (reset main working tree to HEAD), copy branch name
 - **Sidebar mode**: Dock the window to the side of the screen, keep it always on top, and open your IDE in the remaining space
 - **Customizable**: Theme, notification sounds, dock badge, system tray icon, per-workspace scripts and git settings
 - **Auto-update**: One-click update from GitHub releases
@@ -92,7 +94,7 @@ Grove is signed and notarized by Apple, so it launches without any security warn
 
 | Section       | Setting               | Default                  | Description                                                           |
 | ------------- | --------------------- | ------------------------ | --------------------------------------------------------------------- |
-| Display       | Theme                 | Forest                   | Switch between Nord and Forest themes                                 |
+| Display       | Theme                 | Forest                   | 35 built-in DaisyUI themes (Forest default)                           |
 | Display       | Keep window on top    | On                       | Keep Grove above other windows                                        |
 | Display       | Dock to edge          | On                       | Snap to screen edge at full height, open editors in remaining space   |
 | Notifications | Play sound            | When done or needs input | Never, when done or needs input, or only when needs input             |
@@ -102,12 +104,13 @@ Grove is signed and notarized by Apple, so it launches without any security warn
 
 ### Workspace Settings
 
-| Setting                   | Default     | Description                                     |
-| ------------------------- | ----------- | ----------------------------------------------- |
-| Branch new worktrees from | origin/main | Start point for new worktrees                   |
-| Delete local branch       | On          | Clean up the branch after deleting a worktree   |
-| Setup script              | —           | Shell command to run after creating a worktree  |
-| Teardown script           | —           | Shell command to run before removing a worktree |
+| Setting                   | Default     | Description                                                       |
+| ------------------------- | ----------- | ----------------------------------------------------------------- |
+| Repository path           | —           | Absolute path to the git repo this workspace tracks (read-only)   |
+| Branch new worktrees from | origin/main | Start point for new worktrees                                     |
+| Delete local branch       | On          | Clean up the branch after deleting a worktree                     |
+| Setup script              | —           | Shell command to run after creating a worktree                    |
+| Teardown script           | —           | Shell command to run before removing a worktree (`archiveScript` in config.json) |
 
 ## 🤝 Contributing
 
