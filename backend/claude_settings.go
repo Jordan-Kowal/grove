@@ -76,6 +76,9 @@ func readSettingsFile(path string) (map[string]any, error) {
 }
 
 // writeSettingsFile writes settings to a JSON file with a backup.
+// The write is atomic on POSIX: data lands in a sibling tempfile which is
+// then os.Rename'd over the target, so Claude Code can never observe a
+// half-written settings.json even if two writers race.
 func writeSettingsFile(path string, settings map[string]any) error {
 	data, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
@@ -92,11 +95,38 @@ func writeSettingsFile(path string, settings map[string]any) error {
 	}
 
 	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil { // #nosec G301
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil { // #nosec G301
 		return fmt.Errorf("create dir: %w", err)
 	}
 
-	return os.WriteFile(path, data, 0o600)
+	// Write to a sibling tempfile first. Must be same directory so Rename
+	// stays on one filesystem (cross-fs rename is not atomic).
+	tmp, err := os.CreateTemp(dir, ".settings.json.tmp-*")
+	if err != nil {
+		return fmt.Errorf("create tempfile: %w", err)
+	}
+	tmpPath := tmp.Name()
+	// If anything below fails before Rename, remove the stray tempfile.
+	defer func() { _ = os.Remove(tmpPath) }()
+
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("chmod tempfile: %w", err)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write tempfile: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync tempfile: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close tempfile: %w", err)
+	}
+
+	return os.Rename(tmpPath, path)
 }
 
 // mergeGroveHooks ensures all Grove hook entries in settings are present and up to date.

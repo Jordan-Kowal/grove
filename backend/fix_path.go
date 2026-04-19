@@ -15,6 +15,14 @@ import (
 // (e.g. ~/.zprofile with brew shellenv). The -i flag is required because shells like fish
 // guard PATH setup behind `status is-interactive` checks. The inner /bin/sh ensures PATH
 // is printed in colon-separated format even when $SHELL is fish (which uses space-separated $PATH).
+//
+// Security note: this function sources the user's shell dotfiles (`.zshrc`,
+// `.bashrc`, `.config/fish/config.fish`, etc.) in an interactive login. A
+// poisoned dotfile can therefore inject entries into PATH and shadow trusted
+// binaries (e.g. a fake `git` earlier in PATH). Practical impact is low because
+// any attacker with write access to those files already controls the user's
+// shell, but it means Grove's subprocess trust boundary is bounded by the
+// user's shell-init integrity rather than by the app itself.
 func FixPath() {
 	shell := os.Getenv("SHELL")
 	if shell == "" {

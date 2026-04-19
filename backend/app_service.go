@@ -46,12 +46,17 @@ func (s *AppService) InstallUpdate(version string) {
 
 	confirm := dialog.AddButton("Update")
 	confirm.OnClick(func() {
+		// Fetch the update.sh pinned to the target version, then invoke it
+		// with the version as an argument so it fetches the matching DMG
+		// (not releases/latest). stderr+stdout land in ~/.grove/update.log
+		// via the tee exec inside the script itself — do NOT redirect here
+		// or the in-script tee becomes a no-op.
 		url := fmt.Sprintf("https://raw.githubusercontent.com/Jordan-Kowal/grove/%s/scripts/update.sh", version)
 		script := fmt.Sprintf(`(
 			sleep 2
-			curl -fsSL %s | bash >> /dev/null 2>&1
+			curl -fsSL %q | bash -s -- %q
 			open /Applications/Grove.app
-		) &`, url)
+		) &`, url, version)
 		cmd := exec.Command("sh", "-c", script) //nolint:gosec // version validated against semver pattern
 		if err := cmd.Start(); err != nil {
 			app.Dialog.Error().

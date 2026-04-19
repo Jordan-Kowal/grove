@@ -36,7 +36,7 @@ type SoundService struct {
 // NewSoundService creates a new SoundService with defaults.
 func NewSoundService() *SoundService {
 	cacheDir := filepath.Join(os.TempDir(), "grove-sounds")
-	_ = os.MkdirAll(cacheDir, 0o750) // #nosec G301
+	_ = os.MkdirAll(cacheDir, 0o700) // #nosec G301
 	return &SoundService{
 		mode:     SoundModeAll,
 		sound:    "Glass",

@@ -1,35 +1,96 @@
 #!/bin/bash
-# Grove update script — downloads latest .dmg, installs, relaunches.
-# Relies on Developer ID signing + notarization: no xattr or tccutil needed.
+# Grove update script — downloads a version-pinned .dmg, verifies its Apple
+# Developer ID signature, installs to /Applications, and relaunches.
+#
+# Invoked by the app with the target version as $1 (e.g. `update.sh 0.3.1`).
+# If $1 is omitted, falls back to `releases/latest` — kept for manual runs and
+# older Grove versions that pass no arg. The signed caller (app_service.go)
+# always passes a validated version.
 
-set -e
+set -euo pipefail
+
+LOG_DIR="${HOME}/.grove"
+LOG_FILE="${LOG_DIR}/update.log"
+mkdir -p "${LOG_DIR}"
+
+# Tee all output (stdout + stderr) to ~/.grove/update.log so failures are
+# diagnosable after the fact. exec replaces FD 1/2 for the rest of the script.
+exec > >(tee -a "${LOG_FILE}") 2>&1
+
+echo "--- grove update $(date -u +%Y-%m-%dT%H:%M:%SZ) ---"
+
+TEAM_ID="DZZL8SY62B"
+BUNDLE_ID="app.jkdev.grove"
+REQUIREMENT="identifier \"${BUNDLE_ID}\" and anchor apple generic and certificate leaf[subject.OU] = \"${TEAM_ID}\""
+
+VERSION="${1:-}"
 
 cleanup() {
-  if [ -n "${MOUNT_POINT:-}" ] && [ -d "$MOUNT_POINT" ]; then
-    hdiutil detach -quiet "$MOUNT_POINT" || true
+  if [ -n "${MOUNT_POINT:-}" ] && [ -d "${MOUNT_POINT}" ]; then
+    hdiutil detach -quiet "${MOUNT_POINT}" || true
   fi
   rm -rf /tmp/grove-install
 }
 trap cleanup EXIT
 
 echo "Updating Grove..."
-
 mkdir -p /tmp/grove-install
 
-echo "Downloading latest release..."
-curl -s https://api.github.com/repos/Jordan-Kowal/grove/releases/latest | \
-  grep "browser_download_url.*\.dmg\"" | \
-  head -1 | \
-  cut -d '"' -f 4 | \
-  xargs curl -L -o /tmp/grove-install/grove.dmg
+if [ -n "${VERSION}" ]; then
+  # Version-pinned path: fetch the specific tag's release assets. Rejects
+  # attacker-substituted "latest" tags once the caller has committed to a
+  # version string.
+  echo "Fetching release metadata for ${VERSION}..."
+  API_URL="https://api.github.com/repos/Jordan-Kowal/grove/releases/tags/${VERSION}"
+else
+  echo "No version pinned; falling back to releases/latest."
+  API_URL="https://api.github.com/repos/Jordan-Kowal/grove/releases/latest"
+fi
+
+DMG_URL=$(curl -fsSL "${API_URL}" \
+  | grep '"browser_download_url".*\.dmg"' \
+  | head -1 \
+  | cut -d '"' -f 4)
+
+if [ -z "${DMG_URL}" ]; then
+  echo "ERROR: could not resolve DMG URL from ${API_URL}" >&2
+  exit 1
+fi
+
+echo "Downloading ${DMG_URL}..."
+curl -fsSL -o /tmp/grove-install/grove.dmg "${DMG_URL}"
 
 echo "Mounting disk image..."
 MOUNT_POINT=$(hdiutil attach -nobrowse -quiet -mountrandom /tmp /tmp/grove-install/grove.dmg | tail -1 | awk '{print $NF}')
+
+if [ -z "${MOUNT_POINT}" ] || [ ! -d "${MOUNT_POINT}/Grove.app" ]; then
+  echo "ERROR: mount failed or Grove.app missing in DMG" >&2
+  exit 1
+fi
+
+echo "Verifying Apple Developer ID signature..."
+# --deep: walk nested bundles; --strict: reject any signature anomaly;
+# --requirement: pin to our specific Team ID + bundle identifier. This is
+# the gate that prevents a compromised GitHub release from installing a
+# trojaned app under the Grove name.
+if ! codesign --verify --deep --strict --verbose=2 \
+     --requirement "${REQUIREMENT}" \
+     "${MOUNT_POINT}/Grove.app"; then
+  echo "ERROR: codesign verification failed; aborting install" >&2
+  exit 1
+fi
+
+# Gatekeeper cross-check: matches what macOS itself enforces at first launch.
+# Belt-and-suspenders for the codesign --requirement check above.
+if ! spctl --assess --type execute --verbose=2 "${MOUNT_POINT}/Grove.app"; then
+  echo "ERROR: Gatekeeper rejected the signed bundle; aborting install" >&2
+  exit 1
+fi
 
 echo "Installing to Applications folder..."
 if [ -d "/Applications/Grove.app" ]; then
   rm -rf "/Applications/Grove.app"
 fi
-cp -R "$MOUNT_POINT/Grove.app" /Applications/
+cp -R "${MOUNT_POINT}/Grove.app" /Applications/
 
 echo "Grove has been successfully updated!"

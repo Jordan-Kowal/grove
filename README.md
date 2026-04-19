@@ -86,7 +86,7 @@ Grove is signed and notarized by Apple, so it launches without any security warn
 - **Git diffs**: Captured by polling `git diff HEAD --shortstat` on each worktree every 10 seconds
 - **Claude monitoring**: On startup, Grove installs a hook script (`~/.grove/hook.sh`) and merges hooks into `~/.claude/settings.json`. These hooks make Claude write session state (working, permission, question, done) as JSON files in `~/.grove/sessions/`. Grove polls that directory every 2 seconds to update the dashboard
 - **Sounds**: Notification sounds (`.aiff`) are embedded in the binary via Go's `embed` package and extracted to a cache on first use
-- **Auto-update**: The frontend checks the GitHub Releases API for newer versions; the backend downloads the signed `.dmg` and installs via `scripts/update.sh`
+- **Auto-update**: The frontend checks the GitHub Releases API for newer versions; the backend fetches the DMG pinned to the target tag, verifies the Apple Developer ID signature and Gatekeeper before copying into `/Applications/`, and writes all install output to `~/.grove/update.log` for diagnostics
 
 ## ⚙️ Settings
 
@@ -104,12 +104,12 @@ Grove is signed and notarized by Apple, so it launches without any security warn
 
 ### Workspace Settings
 
-| Setting                   | Default     | Description                                                       |
-| ------------------------- | ----------- | ----------------------------------------------------------------- |
-| Repository path           | —           | Absolute path to the git repo this workspace tracks (read-only)   |
-| Branch new worktrees from | origin/main | Start point for new worktrees                                     |
-| Delete local branch       | On          | Clean up the branch after deleting a worktree                     |
-| Setup script              | —           | Shell command to run after creating a worktree                    |
+| Setting                   | Default     | Description                                                                      |
+| ------------------------- | ----------- | -------------------------------------------------------------------------------- |
+| Repository path           | —           | Absolute path to the git repo this workspace tracks (read-only)                  |
+| Branch new worktrees from | origin/main | Start point for new worktrees                                                    |
+| Delete local branch       | On          | Clean up the branch after deleting a worktree                                    |
+| Setup script              | —           | Shell command to run after creating a worktree                                   |
 | Teardown script           | —           | Shell command to run before removing a worktree (`archiveScript` in config.json) |
 
 ## 🤝 Contributing

@@ -12,6 +12,11 @@
 
 - 🚀 Settings now surface warnings when the Accessibility permission is missing or the configured editor app is not installed
 - ✨ Improved performance through various changes (log view cap, bounded git concurrency, refresh debounce, race fix)
+- 🔧 Hardened auto-update: version-pinned DMG URL, Apple Developer ID signature verification + Gatekeeper, strict bash, and stderr logged to `~/.grove/update.log`
+- 🔧 Atomic writes for `~/.claude/settings.json` to avoid races with Claude Code
+- 🔧 Allowlisted event arg in the embedded Claude hook script
+- 🔧 Tightened `~/.grove/sessions/` and sound cache directory permissions to `0o700`
+- 🔧 Added `govulncheck` CI job to flag known vulnerabilities in Go dependencies
 - 🔧 Added `task release:local` + `.env` support for producing a signed, notarized DMG locally (see CONTRIBUTING.md)
 - 🔧 Pinned Wails and Task CLI versions in CI; added `scripts/check-ci-pins.sh` lint step that enforces CI pins match `go.mod`
 - 🔧 Documentation refresh across README, CONTRIBUTING, and CLAUDE.md
