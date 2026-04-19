@@ -75,7 +75,12 @@ jobs:
         run: sh scripts/check-ci-pins.sh
 
   govulncheck:
-    runs-on: ubuntu-latest
+    # Must run on macOS: Wails pulls in Linux-only cgo deps (gtk+-3.0,
+    # webkit2gtk-4.1, libsoup-3.0) under build tags that govulncheck's loader
+    # tries to compile on ubuntu-latest and then fails pkg-config lookup for.
+    # macOS is our actual target platform; the Cocoa cgo deps are already
+    # present on the runner.
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
