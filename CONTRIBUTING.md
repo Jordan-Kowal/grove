@@ -52,7 +52,8 @@ All commands go through [Task](https://taskfile.dev/) (see `Taskfile.yml`):
 | `task release:local` | Builds a signed + notarized local release DMG (reads `.env`)              |
 | `task lint`          | Runs all linters (Biome, `tsc`, `golangci-lint`, CI pin check)            |
 | `task test`          | Runs the Go test suite with the race detector                             |
-| `task check`         | Runs `lint` + `test`                                                      |
+| `task vuln`          | Runs `govulncheck` against Go deps (version pinned via `go.mod` tool directive) |
+| `task check`         | Runs `lint` + `test` + `vuln`                                             |
 | `task generate`      | Regenerates Wails TypeScript bindings from Go services                    |
 | `task upgrade`       | Updates all dependencies to latest and runs `check`                       |
 | `task version:bump`  | Bumps the app version across all config files (calls `scripts/bump-version.sh`) |
@@ -65,6 +66,6 @@ All commands go through [Task](https://taskfile.dev/) (see `Taskfile.yml`):
 ### Helper scripts
 
 - `scripts/bump-version.sh` — bumps the version in `package.json`, `wails.json`, and other config files. Invoked by `task version:bump`.
-- `scripts/check-ci-pins.sh` — lint step that enforces CI tool versions (Wails CLI, Task) match the versions pinned in `go.mod` and `Taskfile.yml`. Fails the `task lint` run if they drift.
+- `scripts/check-ci-pins.sh` — lint step that enforces CI tool versions (Wails CLI, Task, govulncheck) match the versions pinned in `go.mod` and `Taskfile.yml`. Fails the `task lint` run if they drift.
 - `scripts/claude-postwrite.sh` — helper run by a local git hook (`.githooks/pre-commit`) after Claude Code writes files; normalizes formatting before commit.
 - `scripts/update.sh` — invoked by the in-app auto-updater; downloads the latest DMG, mounts it, and replaces the installed app bundle in `/Applications/`.

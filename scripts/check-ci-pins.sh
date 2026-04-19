@@ -6,6 +6,7 @@ set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKFLOW="$ROOT/.github/workflows/build-and-release.yml"
+QUALITY_WORKFLOW="$ROOT/.github/workflows/code-quality.yml"
 
 fail() {
   echo "✗ $1" >&2
@@ -36,6 +37,24 @@ if echo "$CI_TASK" | grep -q "latest"; then
   fail "Task is pinned to 'latest' in $WORKFLOW — pin an explicit version"
 fi
 echo "✓ Task: $CI_TASK"
+
+# govulncheck — must be declared as a tool in go.mod AND invoked via
+# `go tool govulncheck` in CI. Using `@latest` in CI would silently drift
+# from local dev.
+if ! grep -qE '^tool golang\.org/x/vuln/cmd/govulncheck$' "$ROOT/go.mod"; then
+  fail "govulncheck not declared as a tool in go.mod (expected 'tool golang.org/x/vuln/cmd/govulncheck')"
+fi
+if ! grep -q 'go tool govulncheck' "$QUALITY_WORKFLOW"; then
+  fail "code-quality.yml should run 'go tool govulncheck' (pinned via go.mod), not 'go install @latest'"
+fi
+if grep -q 'govulncheck@latest' "$QUALITY_WORKFLOW"; then
+  fail "govulncheck@latest detected in $QUALITY_WORKFLOW — use 'go tool govulncheck' instead"
+fi
+GOMOD_VULN=$(grep -E '^\s*golang\.org/x/vuln v' "$ROOT/go.mod" | awk '{print $2}' | head -1)
+if [ -z "$GOMOD_VULN" ]; then
+  fail "Could not resolve golang.org/x/vuln version in go.mod"
+fi
+echo "✓ govulncheck: $GOMOD_VULN (via go tool)"
 
 echo ""
 echo "All CI tool versions correctly pinned."

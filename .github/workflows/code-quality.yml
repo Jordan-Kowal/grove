@@ -85,9 +85,14 @@ jobs:
           go-version: "1.26"
           cache: true
 
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
+      # Uses the version pinned under the `tool` directive in go.mod.
+      # Keep this in lockstep with scripts/check-ci-pins.sh which asserts
+      # that go.mod actually declares govulncheck as a tool.
+      # GOTELEMETRY=off — golang.org/x/telemetry ships transitively with
+      # govulncheck; keep the intent explicit even though upstream default
+      # is currently off.
       - name: Run govulncheck
-        run: govulncheck ./backend/...
+        env:
+          GOTELEMETRY: "off"
+        run: go tool govulncheck ./backend/...
 

@@ -64,11 +64,23 @@ tasks:
     cmds:
       - go test -race ./backend/...
 
+  vuln:
+    summary: Runs govulncheck against Go dependencies (version pinned in go.mod `tool` directive)
+    # GOTELEMETRY=off defends against golang.org/x/telemetry ever flipping on
+    # by default. Go's telemetry is opt-in today, but it ships transitively
+    # with govulncheck, so pinning the intent here keeps the data boundary
+    # explicit regardless of upstream defaults.
+    env:
+      GOTELEMETRY: "off"
+    cmds:
+      - go tool govulncheck ./backend/...
+
   check:
-    summary: Runs all quality checks (lint + test)
+    summary: Runs all quality checks (lint + test + vuln)
     cmds:
       - task: lint
       - task: test
+      - task: vuln
 
   upgrade:
     summary: Updates all dependencies to latest versions and runs checks
