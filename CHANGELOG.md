@@ -8,7 +8,7 @@
 - 🔧 Others
 - 💥 Breaking
 
-## TBD
+## 0.3.2 - 2026-04-20
 
 - 🐞 New files (not yet committed) now show up in the worktree card's diff count instead of being invisible
 - 🔧 Monitor loop is more resilient: slow git commands can't freeze the dashboard, and memory no longer grows as worktrees come and go
