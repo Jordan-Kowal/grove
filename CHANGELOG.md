@@ -10,6 +10,7 @@
 
 ## 0.3.2 - 2026-04-20
 
+- 🐞 Auto-update now installs new versions reliably instead of failing with a cryptic "mount failed" error
 - 🐞 New files (not yet committed) now show up in the worktree card's diff count instead of being invisible
 - 🔧 Monitor loop is more resilient: slow git commands can't freeze the dashboard, and memory no longer grows as worktrees come and go
 
