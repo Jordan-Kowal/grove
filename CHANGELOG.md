@@ -8,6 +8,11 @@
 - 🔧 Others
 - 💥 Breaking
 
+## TBD
+
+- 🐞 New files (not yet committed) now show up in the worktree card's diff count instead of being invisible
+- 🔧 Monitor loop is more resilient: slow git commands can't freeze the dashboard, and memory no longer grows as worktrees come and go
+
 ## 0.3.1 - 2026-04-19
 
 - 🚀 Settings now surface warnings when the Accessibility permission is missing or the configured editor app is not installed

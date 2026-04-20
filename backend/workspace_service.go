@@ -821,7 +821,7 @@ func (s *WorkspaceService) scanWorktrees(workspaceName string) []WorktreeInfo {
 			ClaudeStatus: ClaudeStatusIdle,
 		}
 		wt.Branch = getGitBranch(dirPath)
-		wt.FilesChanged, wt.Insertions, wt.Deletions = getGitDiffStats(dirPath)
+		wt.FilesChanged, wt.Insertions, wt.Deletions = getGitDiffStats(dirPath, nil, nil)
 		worktrees = append(worktrees, wt)
 	}
 	return worktrees
@@ -897,12 +897,22 @@ func getGitBranch(dir string) string {
 	return unknownBranch
 }
 
-// getGitDiffStats returns diff statistics for a directory.
-func getGitDiffStats(dir string) (files, insertions, deletions int) {
-	cmd := exec.Command("git", "-C", dir, "--no-optional-locks", "diff", "HEAD", "--shortstat") // #nosec G204
+// getGitDiffStats returns combined diff statistics for a directory: tracked changes
+// from `git diff HEAD --shortstat` plus untracked (non-ignored) files counted as insertions.
+// Each git subprocess is bounded by pollGitTimeout so a hung git can't freeze the poller.
+// Pass a non-nil cache to memoize line counts across calls, and a non-nil seen map to
+// participate in mark-and-sweep cleanup; pass nil for one-shot callers (initial scans, tests).
+func getGitDiffStats(dir string, cache *untrackedCache, seen map[string]struct{}) (files, insertions, deletions int) {
+	ctx, cancel := context.WithTimeout(context.Background(), pollGitTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "--no-optional-locks", "diff", "HEAD", "--shortstat") // #nosec G204
 	out, err := cmd.Output()
-	if err != nil {
-		return 0, 0, 0
+	if err == nil {
+		files, insertions, deletions = parseGitDiffStat(string(out))
 	}
-	return parseGitDiffStat(string(out))
+	uf, uins := getUntrackedStats(ctx, dir, cache, seen)
+	files += uf
+	insertions += uins
+	return files, insertions, deletions
 }

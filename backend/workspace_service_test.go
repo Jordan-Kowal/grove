@@ -185,7 +185,7 @@ func TestGetGitDiffStats(t *testing.T) {
 	dir := initTestRepo(t)
 
 	// No diff in clean repo
-	files, ins, dels := getGitDiffStats(dir)
+	files, ins, dels := getGitDiffStats(dir, nil, nil)
 	if files != 0 || ins != 0 || dels != 0 {
 		t.Errorf("clean repo: got files=%d ins=%d dels=%d, want all 0", files, ins, dels)
 	}
@@ -211,12 +211,24 @@ func TestGetGitDiffStats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files, ins, _ = getGitDiffStats(dir)
+	files, ins, _ = getGitDiffStats(dir, nil, nil)
 	if files != 1 {
 		t.Errorf("expected 1 changed file, got %d", files)
 	}
 	if ins != 1 {
 		t.Errorf("expected 1 insertion, got %d", ins)
+	}
+
+	// Adding an untracked file should fold into the combined counts: +1 file, +5 insertions.
+	if err := os.WriteFile(filepath.Join(dir, "new.txt"), []byte("a\nb\nc\nd\ne\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	files, ins, _ = getGitDiffStats(dir, nil, nil)
+	if files != 2 {
+		t.Errorf("combined: expected 2 files, got %d", files)
+	}
+	if ins != 6 {
+		t.Errorf("combined: expected 6 insertions (1 tracked + 5 untracked), got %d", ins)
 	}
 }
 

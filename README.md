@@ -83,7 +83,7 @@ Grove is signed and notarized by Apple, so it launches without any security warn
 
 - **Storage**: All data lives in `~/.grove/` — workspace configs in `projects/<name>/config.json`, worktrees in `projects/<name>/worktrees/`
 - **Worktree lifecycle**: Creating a worktree runs `git worktree add` then your setup script. Deleting runs your teardown script then `git worktree remove`
-- **Git diffs**: Captured by polling `git diff HEAD --shortstat` on each worktree every 10 seconds
+- **Git diffs**: Captured by polling `git diff HEAD --shortstat` on each worktree every 10 seconds. Untracked (non-ignored) files are also counted — listed via `git ls-files --others --exclude-standard` and line-counted with a `(path, mtime, size)` cache so repeated polls stay cheap. Each poll-time git call runs under a 5s timeout; untracked scans are capped at 500 files per worktree and skip line counting for files over 1 MiB
 - **Claude monitoring**: On startup, Grove installs a hook script (`~/.grove/hook.sh`) and merges hooks into `~/.claude/settings.json`. These hooks make Claude write session state (working, permission, question, done) as JSON files in `~/.grove/sessions/`. Grove polls that directory every 2 seconds to update the dashboard
 - **Sounds**: Notification sounds (`.aiff`) are embedded in the binary via Go's `embed` package and extracted to a cache on first use
 - **Auto-update**: The frontend checks the GitHub Releases API for newer versions; the backend fetches the DMG pinned to the target tag, verifies the Apple Developer ID signature and Gatekeeper before copying into `/Applications/`, and writes all install output to `~/.grove/update.log` for diagnostics

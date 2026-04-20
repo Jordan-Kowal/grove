@@ -50,6 +50,7 @@ type MonitorService struct {
 	prevAggregated    map[string]ClaudeStatus // track previous aggregated status per worktree path
 	doneDuration      time.Duration           // how long "done" persists; 0 = instant, <0 = forever
 	gitBusy           sync.Mutex              // prevents overlapping git diff scans
+	untrackedLines    *untrackedCache         // memoizes untracked-file line counts by (path, mtime, size)
 	readSessions      func() []groveSession   // injectable for testing; defaults to readGroveSessions
 	stateVersion      uint64                  // bumped on any observable state change; protected by mu
 	lastLivenessCheck time.Time               // last time session PIDs were probed
@@ -74,6 +75,7 @@ func NewMonitorService(workspaceSvc *WorkspaceService, editorSvc *EditorService,
 		dismissTimes:   make(map[string]time.Time),
 		prevAggregated: make(map[string]ClaudeStatus),
 		doneDuration:   30 * time.Minute,
+		untrackedLines: newUntrackedCache(),
 	}
 	svc.readSessions = svc.readGroveSessions
 	return svc
@@ -315,6 +317,27 @@ func (s *MonitorService) refreshWorkspaces() {
 		s.bumpVersion()
 	}
 	s.workspaces = workspaces
+
+	// Evict per-worktree state for paths that no longer exist. dismissTimes +
+	// prevAggregated are keyed by worktree path and would otherwise grow
+	// unbounded over a long-lived session as worktrees are created and removed.
+	currentPaths := make(map[string]struct{}, len(workspaces)*4)
+	for _, ws := range workspaces {
+		currentPaths[ws.MainWorktree.Path] = struct{}{}
+		for _, wt := range ws.Worktrees {
+			currentPaths[wt.Path] = struct{}{}
+		}
+	}
+	for p := range s.dismissTimes {
+		if _, ok := currentPaths[p]; !ok {
+			delete(s.dismissTimes, p)
+		}
+	}
+	for p := range s.prevAggregated {
+		if _, ok := currentPaths[p]; !ok {
+			delete(s.prevAggregated, p)
+		}
+	}
 	s.mu.Unlock()
 }
 
@@ -357,6 +380,11 @@ func (s *MonitorService) refreshGit() {
 	s.gitBusy.Lock()
 	defer s.gitBusy.Unlock()
 
+	// Snapshot paths under RLock, then release so refreshWorkspaces can still
+	// mutate s.workspaces while git commands run. s.workspaces may be rebuilt
+	// between this read and the applyGit reacquire below, but applyGit is
+	// keyed by path — a worktree that disappears simply drops its update,
+	// and a new worktree gets no data this tick (picked up next refreshGit).
 	s.mu.RLock()
 	var paths []string
 	for _, ws := range s.workspaces {
@@ -373,23 +401,39 @@ func (s *MonitorService) refreshGit() {
 	}
 	results := make([]gitData, len(paths))
 
+	// seen collects every untracked file path visited across all worktrees in this
+	// pass. After the scan we sweep the cache so deleted files are evicted.
+	// Guarded by seenMu because goroutines write concurrently.
+	seen := make(map[string]struct{})
+	var seenMu sync.Mutex
+
 	// Bounded concurrency: at most gitRefreshConcurrency git subprocesses at once.
+	// Acquire the slot on the dispatching goroutine so we also throttle goroutine
+	// creation, not just the git subprocess inside each worker.
 	sem := make(chan struct{}, gitRefreshConcurrency)
 	var wg sync.WaitGroup
 	wg.Add(len(paths))
 	for i, p := range paths {
+		sem <- struct{}{}
 		go func(idx int, dir string) {
 			defer wg.Done()
-			sem <- struct{}{}
 			defer func() { <-sem }()
-			f, ins, d := getGitDiffStats(dir)
+			local := make(map[string]struct{})
+			f, ins, d := getGitDiffStats(dir, s.untrackedLines, local)
 			results[idx] = gitData{
 				branch: getGitBranch(dir),
 				files:  f, ins: ins, dels: d,
 			}
+			seenMu.Lock()
+			for k := range local {
+				seen[k] = struct{}{}
+			}
+			seenMu.Unlock()
 		}(i, p)
 	}
 	wg.Wait()
+
+	s.untrackedLines.sweepUnseen(seen)
 
 	// Build map from results
 	dataByPath := make(map[string]gitData, len(paths))
