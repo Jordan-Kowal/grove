@@ -61,10 +61,25 @@ echo "Downloading ${DMG_URL}..."
 curl -fsSL -o /tmp/grove-install/grove.dmg "${DMG_URL}"
 
 echo "Mounting disk image..."
-MOUNT_POINT=$(hdiutil attach -nobrowse -quiet -mountrandom /tmp /tmp/grove-install/grove.dmg | tail -1 | awk '{print $NF}')
+# Previous version used `-quiet` which suppresses stdout entirely, making the
+# subsequent `tail -1 | awk '{print $NF}'` parse return "". That produced a
+# misleading "mount failed or Grove.app missing" error even when the image
+# mounted fine. We now drop `-quiet` and select the row that actually has
+# a mount-point (last field starts with "/"). -mountrandom /tmp keeps our
+# ephemeral mount out of /Volumes so we don't collide with any user-mounted
+# Grove DMG.
+ATTACH_OUTPUT=$(hdiutil attach -nobrowse -mountrandom /tmp /tmp/grove-install/grove.dmg)
+MOUNT_POINT=$(echo "${ATTACH_OUTPUT}" | awk -F'\t' '$NF ~ /^\// { mp=$NF } END { print mp }')
 
-if [ -z "${MOUNT_POINT}" ] || [ ! -d "${MOUNT_POINT}/Grove.app" ]; then
-  echo "ERROR: mount failed or Grove.app missing in DMG" >&2
+if [ -z "${MOUNT_POINT}" ]; then
+  echo "ERROR: hdiutil attach produced no mount point" >&2
+  echo "hdiutil output was:" >&2
+  echo "${ATTACH_OUTPUT}" >&2
+  exit 1
+fi
+if [ ! -d "${MOUNT_POINT}/Grove.app" ]; then
+  echo "ERROR: Grove.app not found at ${MOUNT_POINT}" >&2
+  ls -la "${MOUNT_POINT}" >&2 || true
   exit 1
 fi
 
