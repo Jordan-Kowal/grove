@@ -131,6 +131,32 @@ export const GeneralSettings: Component = () => {
             />
           </label>
 
+          <label class="mt-2 flex items-center justify-between gap-2">
+            <span
+              class="text-xs font-medium opacity-60"
+              classList={{ "opacity-30": !settings().snapToEdges }}
+            >
+              IDE width (% of remaining space)
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              step={1}
+              disabled={!settings().snapToEdges}
+              class="input input-bordered input-sm w-20 text-xs text-right"
+              value={settings().ideDockWidthPercent}
+              onChange={(e) => {
+                const n = Number(e.currentTarget.value);
+                const clamped = Math.min(
+                  100,
+                  Math.max(1, Number.isFinite(n) ? n : 100),
+                );
+                updateSetting("ideDockWidthPercent", clamped);
+              }}
+            />
+          </label>
+
           <div class="mt-1 flex items-center justify-between gap-2 text-[10px]">
             <span class="flex items-center gap-1 opacity-60">
               Permission:

@@ -8,6 +8,10 @@
 - 🔧 Others
 - 💥 Breaking
 
+## 0.3.3 - 2026-04-22
+
+- 🚀 New "IDE width" setting: choose what share of the remaining screen space your editor takes when docked (useful for large screens)
+
 ## 0.3.2 - 2026-04-20
 
 - 🐞 Auto-update now installs new versions reliably instead of failing with a cryptic "mount failed" error
