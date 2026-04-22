@@ -8,7 +8,7 @@
 - 🔧 Others
 - 💥 Breaking
 
-## TBD
+## 0.3.3 - 2026-04-22
 
 - 🚀 New "IDE width" setting: choose what share of the remaining screen space your editor takes when docked (useful for large screens)
 
