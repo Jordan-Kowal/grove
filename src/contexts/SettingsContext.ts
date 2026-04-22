@@ -50,6 +50,7 @@ export type Settings = {
   theme: Theme;
   alwaysOnTop: boolean;
   snapToEdges: boolean;
+  ideDockWidthPercent: number; // 1-100, share of remaining space taken by IDE when docked
   soundMode: SoundMode;
   soundName: string;
   doneDuration: number; // minutes; 0 = instant, -1 = persist until clicked
@@ -61,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "forest",
   alwaysOnTop: true,
   snapToEdges: true,
+  ideDockWidthPercent: 100,
   soundMode: SoundMode.ALL,
   soundName: "Glass",
   doneDuration: 30,

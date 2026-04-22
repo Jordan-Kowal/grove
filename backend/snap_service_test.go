@@ -62,7 +62,7 @@ func TestSnapServiceGetSnapSide(t *testing.T) {
 
 func TestSnapServiceGetEditorBoundsNotSnapped(t *testing.T) {
 	svc := NewSnapService()
-	bounds := svc.GetEditorBounds()
+	bounds := svc.GetEditorBounds(100)
 	if bounds.Width != 0 || bounds.Height != 0 {
 		t.Errorf("expected zero bounds when not snapped, got %+v", bounds)
 	}
@@ -78,7 +78,7 @@ func TestSnapServiceGetEditorBoundsNoWindow(t *testing.T) {
 	svc.snapSide = snapLeft
 	svc.mu.Unlock()
 
-	bounds := svc.GetEditorBounds()
+	bounds := svc.GetEditorBounds(100)
 	if bounds.Width != 0 || bounds.Height != 0 {
 		t.Errorf("expected zero bounds when no window, got %+v", bounds)
 	}

@@ -97,6 +97,7 @@ Grove is signed and notarized by Apple, so it launches without any security warn
 | Display       | Theme                 | Forest                   | 35 built-in DaisyUI themes (Forest default)                           |
 | Display       | Keep window on top    | On                       | Keep Grove above other windows                                        |
 | Display       | Dock to edge          | On                       | Snap to screen edge at full height, open editors in remaining space   |
+| Display       | IDE width             | 100%                     | Share of the remaining space taken by the editor when docked (1–100%) |
 | Notifications | Play sound            | When done or needs input | Never, when done or needs input, or only when needs input             |
 | Notifications | "Done" badge duration | 30 minutes               | How long the done badge persists: instant, 1–60 min, or until clicked |
 | Notifications | Show menu bar icon    | Off                      | System tray icon to show/hide Grove                                   |
