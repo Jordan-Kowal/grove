@@ -3,10 +3,13 @@
 ## Features
 
 - [ ] **Workspace reordering**: Drag-and-drop to reorder workspaces. Requires activation mode with drag anchors on the side. Persisted order — must handle missing/new workspaces gracefully.
+- [ ] **Update progress**: Rather than instantly closing the app, we could first to all the first steps with a status bar (download, unpack, etc) and only close the app when proceeding at the replacement
+- [ ] Renaming a worktree with an alias
 
 ## Bugs / UX
 
 - [ ] When a git command fails, we dont see the logs
+- [ ] Fix "Active" with new Zed workflow
 
 ## Design
 
