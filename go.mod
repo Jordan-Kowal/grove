@@ -2,7 +2,7 @@ module github.com/Jordan-Kowal/grove
 
 go 1.26.1
 
-require github.com/wailsapp/wails/v3 v3.0.0-alpha.77
+require github.com/wailsapp/wails/v3 v3.0.0-alpha.78
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
