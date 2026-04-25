@@ -61,7 +61,7 @@ declare module "@backend" {
     SetEnabled(enabled: boolean): Promise<void>;
     SnapNow(): Promise<void>;
     GetSnapSide(): Promise<string>;
-    GetEditorBounds(): Promise<EditorBounds>;
+    GetEditorBounds(widthPercent: number): Promise<EditorBounds>;
     OpenAccessibilitySettings(): Promise<void>;
   };
 

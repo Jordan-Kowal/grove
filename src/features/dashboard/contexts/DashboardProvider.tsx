@@ -353,7 +353,9 @@ export const DashboardProvider = (props: DashboardProviderProps) => {
       await EditorService.FocusEditor(worktreePath, editorApp);
       const side = await SnapService.GetSnapSide();
       if (side) {
-        const bounds = await SnapService.GetEditorBounds();
+        const bounds = await SnapService.GetEditorBounds(
+          settings().ideDockWidthPercent,
+        );
         if (bounds.width > 0) {
           await EditorService.PositionWindow(
             editorApp,

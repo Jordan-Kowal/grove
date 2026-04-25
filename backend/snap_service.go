@@ -270,14 +270,21 @@ func (s *SnapService) HandleMove(_ *application.WebviewWindow) {
 }
 
 // GetEditorBounds returns the bounds for the editor window to fill the opposite screen half.
-// Returns a zero EditorBounds if not snapped.
-func (s *SnapService) GetEditorBounds() EditorBounds {
+// widthPercent (1-100) sizes the editor as a fraction of the remaining space.
+// Values outside [1, 100] are clamped. Returns a zero EditorBounds if not snapped.
+func (s *SnapService) GetEditorBounds(widthPercent int) EditorBounds {
 	s.mu.RLock()
 	side := s.snapSide
 	s.mu.RUnlock()
 
 	if side == "" {
 		return EditorBounds{}
+	}
+
+	if widthPercent < 1 {
+		widthPercent = 1
+	} else if widthPercent > 100 {
+		widthPercent = 100
 	}
 
 	// Get current window position and screen bounds via AppleScript
@@ -291,19 +298,23 @@ func (s *SnapService) GetEditorBounds() EditorBounds {
 		return EditorBounds{}
 	}
 
+	remaining := sw - ww
+	editorW := remaining * widthPercent / 100
+
 	switch side {
 	case snapLeft:
 		return EditorBounds{
 			X:      sx + ww,
 			Y:      sy,
-			Width:  sw - ww,
+			Width:  editorW,
 			Height: sh,
 		}
 	case snapRight:
+		groveLeft := sx + sw - ww
 		return EditorBounds{
-			X:      sx,
+			X:      groveLeft - editorW,
 			Y:      sy,
-			Width:  sw - ww,
+			Width:  editorW,
 			Height: sh,
 		}
 	default:
