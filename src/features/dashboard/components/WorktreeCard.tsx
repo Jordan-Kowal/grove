@@ -1,5 +1,6 @@
 import { type Component, createMemo, createSignal, Show } from "solid-js";
 import { StatusBadge } from "@/components/ui";
+import { useSettingsContext } from "@/contexts";
 import { useOutsideClick } from "@/hooks";
 import {
   ClaudeStatus,
@@ -24,6 +25,7 @@ type WorktreeCardProps = {
 
 export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
   const ctx = useDashboardContext();
+  const { settings } = useSettingsContext();
   const [showMenu, setShowMenu] = createSignal(false);
   const [activeAction, setActiveAction] = createSignal<Action | null>(null);
 
@@ -105,7 +107,12 @@ export const WorktreeCard: Component<WorktreeCardProps> = (props) => {
                     root
                   </span>
                 </Show>
-                <Show when={props.worktree.editorOpen}>
+                <Show
+                  when={
+                    settings().editorTrackingEnabled &&
+                    props.worktree.editorOpen
+                  }
+                >
                   <span class="badge badge-xs badge-accent text-[9px] shrink-0">
                     active
                   </span>

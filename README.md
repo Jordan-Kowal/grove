@@ -54,7 +54,7 @@
 - **Worktree management**: Create and remove worktrees per workspace, with git diff stats, custom setup and teardown scripts, live logs, and quick actions (rebase on branch, checkout branch, start fresh from new branch)
 - **Main repo tracking**: The main working tree is always visible as a card alongside worktrees and tracked the same way (git diff, Claude sessions, editor badge)
 - **Claude Code monitoring**: Auto-detect Claude Code sessions in worktree directories and the main repo, display live status, and notify with sound and dock badge. Multi-session badge with per-status hover breakdown when several sessions run in one directory
-- **Open in IDE**: Pick your editor (Zed, VS Code, Cursor, etc.) and open any worktree or workspace root in one click. Cards show an "active" badge when the editor window is currently open, and you can close it from the card's context menu
+- **Open in IDE**: Pick your editor (Zed, VS Code, Cursor, etc.) and open any worktree or workspace root in one click. Cards show an "active" badge when the editor window is currently open, and you can close it from the card's context menu. Tracking can be turned off for editors that share a single window across folders
 - **Context-menu bulk actions**: Remove all worktrees, close all editor windows for a workspace, sync main checkout (reset main working tree to HEAD), copy branch name
 - **Sidebar mode**: Dock the window to the side of the screen, keep it always on top, and open your IDE in the remaining space
 - **Customizable**: Theme, notification sounds, dock badge, system tray icon, per-workspace scripts and git settings
@@ -102,6 +102,7 @@ Grove is signed and notarized by Apple, so it launches without any security warn
 | Notifications | "Done" badge duration | 30 minutes               | How long the done badge persists: instant, 1–60 min, or until clicked |
 | Notifications | Show menu bar icon    | Off                      | System tray icon to show/hide Grove                                   |
 | Editor        | Default editor        | Zed                      | macOS app name (e.g. Zed, Visual Studio Code, Cursor)                 |
+| Editor        | Track active editor windows | On                  | Show "active" badge on cards whose folder is open in the editor; turn off for editors with a single shared window |
 
 ### Workspace Settings
 

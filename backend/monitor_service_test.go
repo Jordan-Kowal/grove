@@ -824,3 +824,110 @@ func TestReadGroveSessions_ReturnsAliveSessionEvenWithinStaggerWindow(t *testing
 		t.Errorf("second call (stagger window): got %d sessions, want 1", len(sessions))
 	}
 }
+
+func TestApplyEditorTracking_DisableClearsFlagsAndBumpsVersion(t *testing.T) {
+	ws := []Workspace{{
+		MainWorktree: WorktreeInfo{Path: "/a", EditorOpen: true},
+		Worktrees: []WorktreeInfo{
+			{Path: "/a/wt1", EditorOpen: true},
+			{Path: "/a/wt2", EditorOpen: false},
+		},
+	}}
+	svc, _, _ := newTestMonitor(ws, func() []groveSession { return nil })
+	svc.editorTracking = true
+	prevVersion := svc.stateVersion
+
+	changed, toggled := svc.applyEditorTracking(false)
+
+	if !toggled {
+		t.Fatal("toggled = false, want true (flag flipped from on to off)")
+	}
+	if !changed {
+		t.Error("changed = false, want true (EditorOpen flags cleared)")
+	}
+	if svc.editorTracking {
+		t.Error("editorTracking = true, want false")
+	}
+	if svc.workspaces[0].MainWorktree.EditorOpen {
+		t.Error("MainWorktree.EditorOpen still true after disable")
+	}
+	if svc.workspaces[0].Worktrees[0].EditorOpen {
+		t.Error("Worktrees[0].EditorOpen still true after disable")
+	}
+	if svc.stateVersion == prevVersion {
+		t.Error("stateVersion not bumped after clearing flags")
+	}
+}
+
+func TestApplyEditorTracking_DisableNoFlagsToClearSkipsVersionBump(t *testing.T) {
+	ws := []Workspace{{
+		MainWorktree: WorktreeInfo{Path: "/a", EditorOpen: false},
+	}}
+	svc, _, _ := newTestMonitor(ws, func() []groveSession { return nil })
+	svc.editorTracking = true
+	prevVersion := svc.stateVersion
+
+	changed, toggled := svc.applyEditorTracking(false)
+
+	if !toggled {
+		t.Fatal("toggled = false, want true")
+	}
+	if changed {
+		t.Error("changed = true, want false (no flags were set)")
+	}
+	if svc.stateVersion != prevVersion {
+		t.Error("stateVersion bumped despite no flag changes")
+	}
+}
+
+func TestApplyEditorTracking_NoOpWhenAlreadyInState(t *testing.T) {
+	svc, _, _ := newTestMonitor(nil, func() []groveSession { return nil })
+	svc.editorTracking = true
+
+	changed, toggled := svc.applyEditorTracking(true)
+
+	if toggled {
+		t.Error("toggled = true, want false (already enabled)")
+	}
+	if changed {
+		t.Error("changed = true, want false (no-op)")
+	}
+}
+
+func TestApplyEditorTracking_EnableTogglesWithoutTouchingFlags(t *testing.T) {
+	ws := []Workspace{{
+		MainWorktree: WorktreeInfo{Path: "/a", EditorOpen: true},
+	}}
+	svc, _, _ := newTestMonitor(ws, func() []groveSession { return nil })
+	svc.editorTracking = false
+
+	changed, toggled := svc.applyEditorTracking(true)
+
+	if !toggled {
+		t.Error("toggled = false, want true")
+	}
+	if changed {
+		t.Error("changed = true, want false (enable does not touch flags)")
+	}
+	if !svc.editorTracking {
+		t.Error("editorTracking = false, want true")
+	}
+	if !svc.workspaces[0].MainWorktree.EditorOpen {
+		t.Error("MainWorktree.EditorOpen cleared on enable; should be untouched")
+	}
+}
+
+func TestRefreshEditorOpen_NoOpWhenTrackingDisabled(t *testing.T) {
+	ws := []Workspace{{
+		MainWorktree: WorktreeInfo{Path: "/a", EditorOpen: true},
+	}}
+	svc, _, _ := newTestMonitor(ws, func() []groveSession { return nil })
+	svc.editorTracking = false
+	svc.editorApp = "TestEditor"
+	// editorSvc is nil; if refreshEditorOpen does not short-circuit, this
+	// will panic on the GetOpenEditorPaths call.
+	svc.refreshEditorOpen()
+	if !svc.workspaces[0].MainWorktree.EditorOpen {
+		t.Error("EditorOpen flag was modified despite tracking being disabled")
+	}
+}

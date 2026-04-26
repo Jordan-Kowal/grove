@@ -8,6 +8,10 @@
 - 🔧 Others
 - 💥 Breaking
 
+## TBD
+
+- 🚀 New "Track active editor windows" setting: turn off the `active` badge and editor polling for editors that share a single window across folders (e.g. recent Zed builds)
+
 ## 0.3.3 - 2026-04-22
 
 - 🚀 New "IDE width" setting: choose what share of the remaining screen space your editor takes when docked (useful for large screens)

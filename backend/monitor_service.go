@@ -41,6 +41,7 @@ type MonitorService struct {
 	traySvc           trayBadger
 	groveDir          string
 	editorApp         string // cached editor app name for window detection
+	editorTracking    bool   // when false, skip editor window polling and clear EditorOpen flags
 	mu                sync.RWMutex
 	workspaces        []Workspace
 	stopCh            chan struct{}
@@ -76,6 +77,7 @@ func NewMonitorService(workspaceSvc *WorkspaceService, editorSvc *EditorService,
 		prevAggregated: make(map[string]ClaudeStatus),
 		doneDuration:   30 * time.Minute,
 		untrackedLines: newUntrackedCache(),
+		editorTracking: true,
 	}
 	svc.readSessions = svc.readGroveSessions
 	return svc
@@ -618,10 +620,62 @@ func (s *MonitorService) SetEditorApp(appName string) {
 	s.mu.Unlock()
 }
 
+// SetEditorTrackingEnabled toggles polling for open editor windows. When
+// disabled, refreshEditorOpen short-circuits and any cached EditorOpen flags
+// are cleared so stale "active" badges do not linger on the dashboard.
+func (s *MonitorService) SetEditorTrackingEnabled(enabled bool) {
+	changed, toggled := s.applyEditorTracking(enabled)
+	if !toggled {
+		return
+	}
+	if changed {
+		application.Get().Event.Emit("workspaces-updated", s.Snapshot())
+	}
+	if enabled {
+		s.refreshEditorOpen()
+		application.Get().Event.Emit("workspaces-updated", s.Snapshot())
+	}
+}
+
+// applyEditorTracking updates the editorTracking flag and, when disabling,
+// clears cached EditorOpen flags. Returns (changed, toggled): changed=true
+// if any EditorOpen flag flipped, toggled=true if the tracking flag itself
+// changed. Split out from SetEditorTrackingEnabled for testability — emits
+// stay in the public method so tests can exercise state transitions without
+// a Wails application instance.
+func (s *MonitorService) applyEditorTracking(enabled bool) (changed, toggled bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.editorTracking == enabled {
+		return false, false
+	}
+	s.editorTracking = enabled
+	if enabled {
+		return false, true
+	}
+	clearEditor := func(wt *WorktreeInfo) {
+		if wt.EditorOpen {
+			wt.EditorOpen = false
+			changed = true
+		}
+	}
+	for i := range s.workspaces {
+		clearEditor(&s.workspaces[i].MainWorktree)
+		for j := range s.workspaces[i].Worktrees {
+			clearEditor(&s.workspaces[i].Worktrees[j])
+		}
+	}
+	if changed {
+		s.bumpVersion()
+	}
+	return changed, true
+}
+
 // refreshEditorOpen queries the editor for open windows and marks matching worktrees.
 func (s *MonitorService) refreshEditorOpen() {
 	s.mu.RLock()
 	appName := s.editorApp
+	tracking := s.editorTracking
 	var allPaths []string
 	for _, ws := range s.workspaces {
 		allPaths = append(allPaths, ws.MainWorktree.Path)
@@ -631,7 +685,7 @@ func (s *MonitorService) refreshEditorOpen() {
 	}
 	s.mu.RUnlock()
 
-	if appName == "" {
+	if !tracking || appName == "" {
 		return
 	}
 
