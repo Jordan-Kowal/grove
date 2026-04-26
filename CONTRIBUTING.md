@@ -51,7 +51,7 @@ All commands go through [Task](https://taskfile.dev/) (see `Taskfile.yml`):
 | `task run`           | Runs the packaged app                                                     |
 | `task release:local` | Builds a signed + notarized local release DMG (reads `.env`)              |
 | `task lint`          | Runs all linters (Biome, `tsc`, `golangci-lint`, CI pin check)            |
-| `task test`          | Runs the Go test suite with the race detector                             |
+| `task test`          | Runs the Go test suite (race detector) and the frontend vitest suite      |
 | `task vuln`          | Runs `govulncheck` against Go deps (version pinned via `go.mod` tool directive) |
 | `task check`         | Runs `lint` + `test` + `vuln`                                             |
 | `task generate`      | Regenerates Wails TypeScript bindings from Go services                    |
