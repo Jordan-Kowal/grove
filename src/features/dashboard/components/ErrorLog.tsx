@@ -73,6 +73,8 @@ export const ErrorLog: Component<ErrorLogProps> = (props) => {
   const parts = props.logKey.split("/", 2);
   const workspaceName = parts[0];
   const worktreeName = parts[1] ?? "";
+  const displayKey = () =>
+    worktreeName === "." ? `${workspaceName} (main)` : props.logKey;
 
   const lines = () => ctx.getScriptLogs(workspaceName, worktreeName);
   const task = () => ctx.taskStatuses()[props.logKey];
@@ -115,7 +117,7 @@ export const ErrorLog: Component<ErrorLogProps> = (props) => {
           <ArrowLeft size={14} />
         </button>
         <span class="text-[10px] font-semibold uppercase tracking-wider opacity-50 no-drag truncate flex-1">
-          {props.logKey}
+          {displayKey()}
         </span>
       </div>
 
