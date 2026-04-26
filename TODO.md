@@ -8,7 +8,6 @@
 
 ## Bugs / UX
 
-- [ ] When a git command fails, we dont see the logs
 - [ ] Fix "Active" with new Zed workflow
 
 ## Design

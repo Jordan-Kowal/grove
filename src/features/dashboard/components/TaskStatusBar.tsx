@@ -129,6 +129,7 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
       <Show when={isFailed() && step() === TaskStep.GIT_WORKTREE}>
         <X size={10} class="text-error shrink-0" />
         <span class="text-[10px] text-error flex-1">{stepLabel()} failed</span>
+        <LogsButton />
         <ActionButton
           tip="Dismiss"
           icon={<X size={10} />}
@@ -136,6 +137,23 @@ export const TaskStatusBar: Component<TaskStatusBarProps> = (props) => {
             clearTaskStatus();
             forceRemove();
           }}
+        />
+      </Show>
+
+      {/* Failed: git remove */}
+      <Show when={isFailed() && step() === TaskStep.GIT_REMOVE}>
+        <X size={10} class="text-error shrink-0" />
+        <span class="text-[10px] text-error flex-1">{stepLabel()} failed</span>
+        <LogsButton />
+        <ActionButton
+          tip="Dismiss"
+          icon={<X size={10} />}
+          onClick={clearTaskStatus}
+        />
+        <ActionButton
+          tip="Force delete"
+          icon={<Trash2 size={10} />}
+          onClick={forceRemove}
         />
       </Show>
 

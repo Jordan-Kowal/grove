@@ -20,6 +20,11 @@ type ErrorLogProps = {
 const STEP_LABELS: Record<string, string> = {
   [TaskStep.SETUP_SCRIPT]: "Setup script",
   [TaskStep.ARCHIVE_SCRIPT]: "Archive script",
+  [TaskStep.GIT_WORKTREE]: "Git worktree",
+  [TaskStep.GIT_REMOVE]: "Removing worktree",
+  [TaskStep.REBASE]: "Rebase",
+  [TaskStep.CHECKOUT]: "Checkout",
+  [TaskStep.NEW_BRANCH]: "New branch",
 };
 
 const formatTime = (ms: number) => {
