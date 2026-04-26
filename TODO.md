@@ -6,10 +6,6 @@
 - [ ] **Update progress**: Rather than instantly closing the app, we could first to all the first steps with a status bar (download, unpack, etc) and only close the app when proceeding at the replacement
 - [ ] Renaming a worktree with an alias
 
-## Bugs / UX
-
-- [ ] Fix "Active" with new Zed workflow
-
 ## Design
 
 - [ ] Improve logo design
@@ -19,10 +15,6 @@
 - [ ] **Split `backend/workspace_service.go`** (~900 lines): extract `workspace_script.go` (runScriptTracked, log streaming), `workspace_git.go` (rebase/checkout/new-branch/list-branches/sync-main/fetch-remote/force-remove/resolve-git-dir), `workspace_validate.go` (validateName, validateBranchName, regex consts). Same package, no visibility changes.
 - [ ] **Split `backend/monitor_service.go`** (~690 lines): extract `monitor_hook.go` (hookScript + installHook), `monitor_claude.go` (groveSession, readGroveSessions, refreshClaude, resolveWorktreePath, groveStateToClaudeStatus, isProcessAlive, sessionCountsEqual, DismissDone). Preserve lock discipline.
 - [ ] **Split `src/features/dashboard/contexts/DashboardProvider.tsx`** (~455 lines): extract `useEditorActions.ts` (focusEditor, closeEditor, closeAllEditors) and `useTaskEvents.ts` (worktree-task subscription, log streaming). Hooks take store setters as args. Preserve context identity.
-
-## Security
-
-- [ ] **Replace hand-rolled AppleScript escaping** (`backend/editor_service.go`): manual escape of paths passed to `osascript` is fragile long-term. Consider a library or switch to argv-style `osascript -e '...' -- "$path"` invocation.
 
 ## Performance
 

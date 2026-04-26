@@ -15,21 +15,12 @@ func NewEditorService() *EditorService {
 	return &EditorService{}
 }
 
-// escapeAppleScript escapes characters for safe use in AppleScript strings and
-// single-quoted shell contexts within `do shell script`.
-func escapeAppleScript(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	s = strings.ReplaceAll(s, `'`, `'"'"'`)
-	return s
-}
-
 // IsValidApp checks that a macOS application exists by name.
 func (s *EditorService) IsValidApp(name string) bool {
 	if name == "" {
 		return false
 	}
-	cmd := exec.Command("open", "-Ra", name) // #nosec G204 -- user-selected app name, escaped downstream
+	cmd := exec.Command("open", "-Ra", name) // #nosec G204 -- user-selected app name passed as exec argv, not shell-interpreted
 	return cmd.Run() == nil
 }
 
@@ -56,24 +47,26 @@ func (s *EditorService) GetOpenEditorPaths(editorApp string) []string {
 	if editorApp == "" {
 		editorApp = "Zed"
 	}
-	safeApp := escapeAppleScript(editorApp)
-	script := fmt.Sprintf(`
-tell application "System Events"
-	if exists process "%s" then
-		tell process "%s"
-			set windowNames to name of every window
-		end tell
-		set output to ""
-		repeat with wName in windowNames
-			set output to output & wName & linefeed
-		end repeat
-		return output
-	end if
-end tell
-return ""
-`, safeApp, safeApp)
+	script := `
+on run argv
+	set appName to item 1 of argv
+	tell application "System Events"
+		if exists process appName then
+			tell process appName
+				set windowNames to name of every window
+			end tell
+			set output to ""
+			repeat with wName in windowNames
+				set output to output & wName & linefeed
+			end repeat
+			return output
+		end if
+	end tell
+	return ""
+end run
+`
 
-	cmd := exec.Command("osascript", "-e", script) // #nosec G204 -- app name escaped
+	cmd := exec.Command("osascript", "-e", script, "--", editorApp) // #nosec G204 -- app name passed via argv, not interpolated
 	out, err := cmd.Output()
 	if err != nil {
 		return nil
@@ -117,22 +110,24 @@ func (s *EditorService) CloseEditorWindow(worktreePath string, editorApp string)
 		editorApp = "Zed"
 	}
 	dirName := filepath.Base(worktreePath)
-	safeApp := escapeAppleScript(editorApp)
-	safeName := escapeAppleScript(dirName)
-	script := fmt.Sprintf(`
-tell application "System Events"
-	if exists process "%s" then
-		tell process "%s"
-			set windowList to every window whose name contains "%s"
-			repeat with w in windowList
-				click (first button of w whose subrole is "AXCloseButton")
-			end repeat
-		end tell
-	end if
-end tell
-`, safeApp, safeApp, safeName)
+	script := `
+on run argv
+	set appName to item 1 of argv
+	set needle to item 2 of argv
+	tell application "System Events"
+		if exists process appName then
+			tell process appName
+				set windowList to every window whose name contains needle
+				repeat with w in windowList
+					click (first button of w whose subrole is "AXCloseButton")
+				end repeat
+			end tell
+		end if
+	end tell
+end run
+`
 
-	cmd := exec.Command("osascript", "-e", script) // #nosec G204 -- app + name escaped
+	cmd := exec.Command("osascript", "-e", script, "--", editorApp, dirName) // #nosec G204 -- args passed via argv, not interpolated
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("close editor window failed: %s: %w", string(out), err)
 	}
@@ -145,20 +140,22 @@ func (s *EditorService) PositionWindow(appName string, x, y, width, height int) 
 		return nil
 	}
 
-	safeApp := escapeAppleScript(appName)
-	// AppleScript bounds are {left, top, right, bottom}
+	// Integer bounds are interpolated; app name is passed via argv to avoid string injection.
 	script := fmt.Sprintf(`
-tell application "System Events"
-	if exists process "%s" then
-		tell process "%s"
-			set position of front window to {%d, %d}
-			set size of front window to {%d, %d}
-		end tell
-	end if
-end tell
-`, safeApp, safeApp, x, y, width, height)
+on run argv
+	set appName to item 1 of argv
+	tell application "System Events"
+		if exists process appName then
+			tell process appName
+				set position of front window to {%d, %d}
+				set size of front window to {%d, %d}
+			end tell
+		end if
+	end tell
+end run
+`, x, y, width, height)
 
-	cmd := exec.Command("osascript", "-e", script) // #nosec G204 -- app validated upstream + escaped
+	cmd := exec.Command("osascript", "-e", script, "--", appName) // #nosec G204 -- app name passed via argv, not interpolated
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("AppleScript position failed: %s: %w", string(out), err)
 	}
