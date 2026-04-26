@@ -19,7 +19,7 @@ Tech stack: SolidJS, Vite, Tailwind CSS v4 + DaisyUI, Wails v3 (Go), Lucide Soli
 
 ```txt
 src/
-  features/{name}/       # Feature-specific: components/ (always), contexts/ (only when feature-local state is needed — e.g. dashboard/)
+  features/{name}/       # Feature-specific: components/ (always), contexts/ + hooks/ (only when feature-local state/logic is needed — e.g. dashboard/)
   components/ui/         # Shared UI primitives
   contexts/              # Shared contexts (Context.ts + Provider.tsx pattern)
   hooks/                 # Shared hooks
@@ -29,9 +29,14 @@ src/
   backend.d.ts           # Type declarations for Wails-generated bindings
 
 backend/
-  workspace_service.go          # Workspace/worktree CRUD, git operations, script execution, log streaming
+  workspace_service.go          # Workspace/worktree CRUD, async create/remove flows
+  workspace_git.go              # Git ops: rebase, checkout, new-branch, list-branches, sync-main, fetch-remote, force-remove, resolve-git-dir
+  workspace_script.go           # Script execution + log streaming (runScriptTracked, WorktreeLogEvent)
+  workspace_validate.go         # Name + branch name validation, regex consts
   workspace_types.go            # Workspace, WorkspaceConfig, BranchInfo types
-  monitor_service.go            # Polling, Claude status detection, event emission
+  monitor_service.go            # Polling, workspace/git/editor refresh, event emission
+  monitor_claude.go             # Claude status detection (sessions, aggregation, dismiss)
+  monitor_hook.go               # Claude hook script + installHook
   app_service.go                # Version info, auto-update via GitHub releases
   editor_service.go             # Editor focus/open (configurable app)
   snap_service.go               # Window edge snapping, editor positioning
