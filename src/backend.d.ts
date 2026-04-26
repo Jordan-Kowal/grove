@@ -13,6 +13,7 @@ declare module "@backend" {
     DismissDone(path: string): Promise<void>;
     SetDoneDuration(minutes: number): Promise<void>;
     SetEditorApp(appName: string): Promise<void>;
+    SetEditorTrackingEnabled(enabled: boolean): Promise<void>;
   };
 
   export const WorkspaceService: {

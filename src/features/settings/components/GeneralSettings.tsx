@@ -300,6 +300,27 @@ export const GeneralSettings: Component = () => {
             macOS app name (e.g. Zed, Visual Studio Code, Cursor)
           </p>
         </div>
+
+        <label class="flex items-center justify-between cursor-pointer">
+          <div class="space-y-0.5">
+            <span class="text-xs font-medium opacity-60">
+              Track active editor windows
+            </span>
+            <p class="text-[10px] opacity-40">
+              Show "active" badge on cards whose folder is open in the editor.
+              Disable for editors that share a single window across folders
+              (e.g. recent Zed builds).
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            class="toggle toggle-sm toggle-primary"
+            checked={settings().editorTrackingEnabled}
+            onChange={(e) =>
+              updateSetting("editorTrackingEnabled", e.currentTarget.checked)
+            }
+          />
+        </label>
       </Section>
 
       {/* About */}

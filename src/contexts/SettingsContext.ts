@@ -56,6 +56,7 @@ export type Settings = {
   doneDuration: number; // minutes; 0 = instant, -1 = persist until clicked
   systemTrayEnabled: boolean;
   editorApp: string;
+  editorTrackingEnabled: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -68,6 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
   doneDuration: 30,
   systemTrayEnabled: false,
   editorApp: "Zed",
+  editorTrackingEnabled: true,
 };
 
 export type SettingsContextProps = {
