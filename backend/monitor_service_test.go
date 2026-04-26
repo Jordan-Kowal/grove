@@ -40,6 +40,7 @@ func newTestMonitor(workspaces []Workspace, sessions func() []groveSession) (*Mo
 		doneDuration:   30 * time.Minute,
 		stopCh:         make(chan struct{}),
 		readSessions:   sessions,
+		sessionCache:   make(map[string]sessionCacheEntry),
 	}
 	return svc, sound, tray
 }
@@ -757,6 +758,7 @@ func newTestMonitorWithGroveDir(t *testing.T, groveDir string) *MonitorService {
 		dismissTimes:   make(map[string]time.Time),
 		prevAggregated: make(map[string]ClaudeStatus),
 		doneDuration:   30 * time.Minute,
+		sessionCache:   make(map[string]sessionCacheEntry),
 	}
 }
 

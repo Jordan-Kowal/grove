@@ -43,17 +43,40 @@ type MonitorService struct {
 	workspaces        []Workspace
 	stopCh            chan struct{}
 	stopOnce          sync.Once
-	bootTime          time.Time               // app start time — done before this is treated as idle
-	dismissTimes      map[string]time.Time    // last card click per worktree path
-	prevAggregated    map[string]ClaudeStatus // track previous aggregated status per worktree path
-	doneDuration      time.Duration           // how long "done" persists; 0 = instant, <0 = forever
-	gitBusy           sync.Mutex              // prevents overlapping git diff scans
-	untrackedLines    *untrackedCache         // memoizes untracked-file line counts by (path, mtime, size)
-	readSessions      func() []groveSession   // injectable for testing; defaults to readGroveSessions
-	stateVersion      uint64                  // bumped on any observable state change; protected by mu
-	lastLivenessCheck time.Time               // last time session PIDs were probed
-	refreshTimer      *time.Timer             // trailing-edge debounce for RefreshNow; protected by refreshMu
-	refreshMu         sync.Mutex              // guards refreshTimer
+	bootTime          time.Time                    // app start time — done before this is treated as idle
+	dismissTimes      map[string]time.Time         // last card click per worktree path
+	prevAggregated    map[string]ClaudeStatus      // track previous aggregated status per worktree path
+	doneDuration      time.Duration                // how long "done" persists; 0 = instant, <0 = forever
+	gitBusy           sync.Mutex                   // prevents overlapping git diff scans
+	untrackedLines    *untrackedCache              // memoizes untracked-file line counts by (path, mtime, size)
+	readSessions      func() []groveSession        // injectable for testing; defaults to readGroveSessions
+	stateVersion      uint64                       // bumped on any observable state change; protected by mu
+	lastLivenessCheck time.Time                    // last time session PIDs were probed
+	refreshTimer      *time.Timer                  // trailing-edge debounce for RefreshNow; protected by refreshMu
+	refreshMu         sync.Mutex                   // guards refreshTimer
+	wsScanCache       wsScanCache                  // mtime gate for refreshWorkspaces; protected by mu
+	sessionCache      map[string]sessionCacheEntry // per-path mtime cache for readGroveSessions; protected by mu
+}
+
+// sessionCacheEntry memoizes a parsed grove session keyed by file mtime.
+// When a session file is touched (PreToolUse hook updates state), we re-read
+// + re-parse. When it is unchanged across ticks, we reuse the parsed struct.
+type sessionCacheEntry struct {
+	mtime  time.Time
+	parsed groveSession
+}
+
+// wsScanCache memoizes the last refreshWorkspaces scan result, keyed by
+// filesystem mtimes. When mtimes are unchanged across ticks we skip the
+// per-workspace ReadDir + readConfig + scanWorktreeStructure work entirely.
+type wsScanCache struct {
+	groveMtime time.Time
+	perWs      map[string]wsMtimePair
+}
+
+type wsMtimePair struct {
+	configMtime    time.Time
+	worktreesMtime time.Time
 }
 
 // NewMonitorService creates a new MonitorService.
@@ -75,6 +98,7 @@ func NewMonitorService(workspaceSvc *WorkspaceService, editorSvc *EditorService,
 		doneDuration:   30 * time.Minute,
 		untrackedLines: newUntrackedCache(),
 		editorTracking: true,
+		sessionCache:   make(map[string]sessionCacheEntry),
 	}
 	svc.readSessions = svc.readGroveSessions
 	return svc
@@ -221,9 +245,60 @@ func (s *MonitorService) pollGit() {
 
 // refreshWorkspaces scans the filesystem for workspaces and worktrees.
 // Updates the cached workspace list structure without running git diff/status.
+//
+// Gated by mtime: if neither the grove projects dir nor any per-workspace
+// config.json / worktrees/ dir has changed since the last successful scan,
+// we skip the rescan entirely. The cached structure is kept fresh by
+// refreshGit / refreshClaude / refreshEditorOpen, which mutate worktree
+// fields in place — so an early return here does not stale them.
 func (s *MonitorService) refreshWorkspaces() {
-	entries, err := os.ReadDir(s.workspaceSvc.GroveDir())
+	groveDir := s.workspaceSvc.GroveDir()
+
+	groveInfo, err := os.Stat(groveDir)
 	if err != nil {
+		return
+	}
+
+	entries, err := os.ReadDir(groveDir)
+	if err != nil {
+		return
+	}
+
+	// Stat per-workspace mtimes upfront so we can decide whether to skip the
+	// expensive readConfig + scanWorktreeStructure work below.
+	currentMtimes := make(map[string]wsMtimePair, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		var pair wsMtimePair
+		if info, err := os.Stat(filepath.Join(groveDir, name, "config.json")); err == nil {
+			pair.configMtime = info.ModTime()
+		}
+		if info, err := os.Stat(filepath.Join(groveDir, name, "worktrees")); err == nil {
+			pair.worktreesMtime = info.ModTime()
+		}
+		currentMtimes[name] = pair
+	}
+
+	s.mu.RLock()
+	cacheValid := !s.wsScanCache.groveMtime.IsZero() &&
+		s.wsScanCache.groveMtime.Equal(groveInfo.ModTime()) &&
+		len(s.wsScanCache.perWs) == len(currentMtimes)
+	if cacheValid {
+		for name, curr := range currentMtimes {
+			prev, ok := s.wsScanCache.perWs[name]
+			if !ok || !prev.configMtime.Equal(curr.configMtime) ||
+				!prev.worktreesMtime.Equal(curr.worktreesMtime) {
+				cacheValid = false
+				break
+			}
+		}
+	}
+	s.mu.RUnlock()
+
+	if cacheValid {
 		return
 	}
 
@@ -300,6 +375,8 @@ func (s *MonitorService) refreshWorkspaces() {
 			delete(s.prevAggregated, p)
 		}
 	}
+	s.wsScanCache.groveMtime = groveInfo.ModTime()
+	s.wsScanCache.perWs = currentMtimes
 	s.mu.Unlock()
 }
 

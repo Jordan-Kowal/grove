@@ -163,20 +163,41 @@ func (s *MonitorService) readGroveSessions() []groveSession {
 
 	var sessions []groveSession
 	var toRemove []string
+	currentPaths := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
 		}
 
 		filePath := filepath.Join(s.groveDir, entry.Name())
-		data, err := os.ReadFile(filePath) // #nosec G304
+		currentPaths[filePath] = struct{}{}
+
+		info, err := entry.Info()
 		if err != nil {
 			continue
 		}
+		mtime := info.ModTime()
+
+		// Cache hit: reuse parsed session when mtime is unchanged. Skips
+		// the ReadFile + Unmarshal — the dominant cost in this loop.
+		s.mu.RLock()
+		cached, hit := s.sessionCache[filePath]
+		s.mu.RUnlock()
 
 		var sess groveSession
-		if err := json.Unmarshal(data, &sess); err != nil {
-			continue
+		if hit && cached.mtime.Equal(mtime) {
+			sess = cached.parsed
+		} else {
+			data, err := os.ReadFile(filePath) // #nosec G304
+			if err != nil {
+				continue
+			}
+			if err := json.Unmarshal(data, &sess); err != nil {
+				continue
+			}
+			s.mu.Lock()
+			s.sessionCache[filePath] = sessionCacheEntry{mtime: mtime, parsed: sess}
+			s.mu.Unlock()
 		}
 
 		if checkLiveness && !isProcessAlive(sess.PID) {
@@ -184,14 +205,20 @@ func (s *MonitorService) readGroveSessions() []groveSession {
 			continue
 		}
 
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		sess.ModTime = info.ModTime()
-
+		sess.ModTime = mtime
 		sessions = append(sessions, sess)
 	}
+
+	// Evict cache entries for files that no longer exist (session ended +
+	// file removed). Without this, the map grows unbounded across the
+	// long-lived monitor session.
+	s.mu.Lock()
+	for p := range s.sessionCache {
+		if _, ok := currentPaths[p]; !ok {
+			delete(s.sessionCache, p)
+		}
+	}
+	s.mu.Unlock()
 
 	// Cleanup off the hot path — readers never block on os.Remove.
 	if len(toRemove) > 0 {

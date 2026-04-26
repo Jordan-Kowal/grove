@@ -15,6 +15,7 @@
 - ✨ Update prompt now sets clearer expectations: warns the update runs in the background, may take a few seconds, and points to `~/.grove/update.log` if the app does not reopen
 - 🔧 Editor `osascript` calls now pass app/window names via AppleScript `argv` instead of string interpolation, removing hand-rolled escaping and any residual injection risk
 - 🔧 Log view ANSI parser collapses 8 sequential regex passes into a single alternation, halving string allocations on long log lines (covered by new vitest suite)
+- ✨ Monitor polling avoids redundant work: `refreshWorkspaces` now skips its rescan when grove projects dir + per-workspace config/worktrees mtimes are unchanged (96% hit rate in steady state, p99 ~580ms → ~5ms), and `readGroveSessions` reuses parsed session JSON when file mtime is unchanged (p99 ~210ms → ~12ms)
 
 ## 0.3.3 - 2026-04-22
 
