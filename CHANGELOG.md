@@ -14,6 +14,7 @@
 - ✨ Failed git operations (worktree create/remove, rebase, checkout, new branch) now expose a "View logs" button with the captured git output, matching the setup-script behavior
 - ✨ Update prompt now sets clearer expectations: warns the update runs in the background, may take a few seconds, and points to `~/.grove/update.log` if the app does not reopen
 - 🔧 Editor `osascript` calls now pass app/window names via AppleScript `argv` instead of string interpolation, removing hand-rolled escaping and any residual injection risk
+- 🔧 Log view ANSI parser collapses 8 sequential regex passes into a single alternation, halving string allocations on long log lines (covered by new vitest suite)
 
 ## 0.3.3 - 2026-04-22
 

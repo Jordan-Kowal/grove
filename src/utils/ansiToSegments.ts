@@ -32,19 +32,15 @@ export type AnsiSegment = {
   classes: string[];
 };
 
+// Single-pass strip of cursor control sequences that don't apply to log display.
+// Alternation order is independent — terminators don't overlap.
+const CURSOR_CONTROL_RE =
+  /\x1b\[(?:[0-9]*[KGABCD]|[0-9]*;[0-9]*H|[su]|2J|\?25[lh])/g;
+
 export const parseAnsiToSegments = (text: string): AnsiSegment[] => {
   const segments: AnsiSegment[] = [];
 
-  // Remove cursor control sequences that don't apply to log display
-  const cleanedText = text
-    .replace(/\x1b\[[0-9]*K/g, "")
-    .replace(/\x1b\[[0-9]*G/g, "")
-    .replace(/\x1b\[[0-9]*;[0-9]*H/g, "")
-    .replace(/\x1b\[[0-9]*[ABCD]/g, "")
-    .replace(/\x1b\[s/g, "")
-    .replace(/\x1b\[u/g, "")
-    .replace(/\x1b\[2J/g, "")
-    .replace(/\x1b\[\?25[lh]/g, "");
+  const cleanedText = text.replace(CURSOR_CONTROL_RE, "");
 
   const ansiRegex = /\x1b\[([0-9;]*)m/g;
 

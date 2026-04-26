@@ -63,6 +63,7 @@ tasks:
       CGO_LDFLAGS: "-mmacosx-version-min=15.4"
     cmds:
       - go test -race ./backend/...
+      - bun run test
 
   vuln:
     summary: Runs govulncheck against Go dependencies (version pinned in go.mod `tool` directive)

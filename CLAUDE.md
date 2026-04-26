@@ -98,6 +98,12 @@ src/components/index.ts           (no root barrel)
 - Biome auto-runs on save: removes unused imports, sorts imports alphabetically
 - When editing: add usage first, then import (otherwise Biome removes the "unused" import)
 
+**Testing:**
+
+- Vitest for pure utilities (`src/**/*.test.ts`), node environment (no jsdom), config in `vitest.config.ts`
+- Run via `bun run test` or `task test` (which also runs the Go suite)
+- No component-rendering tests yet — add jsdom + `@solidjs/testing-library` if SolidJS DOM tests are needed later
+
 **Styling (DaisyUI + Tailwind):**
 
 - DaisyUI first for UI elements (`btn`, `card`, `badge`) and semantic colors (`bg-base-100`, `text-base-content`)
