@@ -64,7 +64,7 @@
 
 ### Download
 
-**[⬇️ Download Grove 0.3.3 for macOS](https://github.com/Jordan-Kowal/grove/releases/download/0.3.3/Grove-0.3.3.dmg)**
+**[⬇️ Download Grove 0.3.4 for macOS](https://github.com/Jordan-Kowal/grove/releases/download/0.3.4/Grove-0.3.4.dmg)**
 
 1. Click the download link above (or grab it from the [Releases page](https://github.com/Jordan-Kowal/grove/releases))
 2. Double-click the DMG to open it

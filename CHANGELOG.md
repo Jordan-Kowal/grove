@@ -8,14 +8,13 @@
 - 🔧 Others
 - 💥 Breaking
 
-## TBD
+## 0.3.4 - 2026-04-26
 
-- 🚀 New "Track active editor windows" setting: turn off the `active` badge and editor polling for editors that share a single window across folders (e.g. recent Zed builds)
-- ✨ Failed git operations (worktree create/remove, rebase, checkout, new branch) now expose a "View logs" button with the captured git output, matching the setup-script behavior
-- ✨ Update prompt now sets clearer expectations: warns the update runs in the background, may take a few seconds, and points to `~/.grove/update.log` if the app does not reopen
-- 🔧 Editor `osascript` calls now pass app/window names via AppleScript `argv` instead of string interpolation, removing hand-rolled escaping and any residual injection risk
-- 🔧 Log view ANSI parser collapses 8 sequential regex passes into a single alternation, halving string allocations on long log lines (covered by new vitest suite)
-- ✨ Monitor polling avoids redundant work: `refreshWorkspaces` now skips its rescan when grove projects dir + per-workspace config/worktrees mtimes are unchanged (96% hit rate in steady state, p99 ~580ms → ~5ms), and `readGroveSessions` reuses parsed session JSON when file mtime is unchanged (p99 ~210ms → ~12ms)
+- ✨ The update prompt now sets clearer expectations
+- ✨ New "Track active editor windows" setting: turn off the `active` badge and editor polling for editors that share a single window across folders (e.g. recent Zed builds)
+- 🐞 Failed git operations now expose a "View logs" button with the captured git output, matching the setup-script behavior
+- 🔧 Editor `osascript` calls now pass app/window names via AppleScript `argv` instead of string interpolation (improved security)
+- 🔧 Improved performances for log parsing and filesystem polling (keep the 2s refresh light even with many sessions and workspaces)
 
 ## 0.3.3 - 2026-04-22
 

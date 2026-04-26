@@ -17,7 +17,7 @@ var assets embed.FS
 var appIcon []byte
 
 // Keep in sync with package.json and build/config.yml
-const appVersion = "0.3.3"
+const appVersion = "0.3.4"
 
 func main() {
 	backend.FixPath()
