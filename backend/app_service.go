@@ -40,7 +40,7 @@ func (s *AppService) InstallUpdate(version string) {
 	dialog := app.Dialog.Question().
 		SetTitle("Update Available").
 		SetMessage(fmt.Sprintf(
-			"A new version (%s) is available.\n\nThe app will close, update, and reopen automatically.\n\nDo you want to proceed?",
+			"A new version (%s) is available.\n\nThe app will close, then update in the background. This may take a few seconds before the app reopens.\n\nIf the app doesn't reopen after a minute, check the update log at ~/.grove/update.log.\n\nDo you want to proceed?",
 			version,
 		))
 
