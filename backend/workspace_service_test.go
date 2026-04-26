@@ -119,18 +119,20 @@ func TestFetchRemoteIfNeeded(t *testing.T) {
 		t.Fatalf("git clone failed: %s: %v", out, err)
 	}
 
+	svc := &WorkspaceService{groveDir: t.TempDir(), runningCmds: make(map[string]*exec.Cmd)}
+
 	// Local branch — should not error and not fetch
-	if err := fetchRemoteIfNeeded(cloneDir, "main"); err != nil {
+	if err := svc.fetchRemoteIfNeeded("", "", cloneDir, "main"); err != nil {
 		t.Errorf("local branch: unexpected error: %v", err)
 	}
 
 	// Remote ref — should fetch successfully
-	if err := fetchRemoteIfNeeded(cloneDir, "origin/main"); err != nil {
+	if err := svc.fetchRemoteIfNeeded("", "", cloneDir, "origin/main"); err != nil {
 		t.Errorf("remote ref: unexpected error: %v", err)
 	}
 
 	// Unknown remote — should be a no-op
-	if err := fetchRemoteIfNeeded(cloneDir, "nonexistent/branch"); err != nil {
+	if err := svc.fetchRemoteIfNeeded("", "", cloneDir, "nonexistent/branch"); err != nil {
 		t.Errorf("unknown remote: unexpected error: %v", err)
 	}
 }

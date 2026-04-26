@@ -112,7 +112,9 @@ func (s *WorkspaceService) resolveGitDir(workspaceName, worktreeName string) (st
 }
 
 // fetchRemoteIfNeeded fetches the remote when ref looks like a remote tracking branch (e.g. "origin/main").
-func fetchRemoteIfNeeded(repoPath, ref string) error {
+// When workspace/worktree are non-empty, the fetch output is streamed via worktree-log so the user can
+// open the failure logs from the dashboard. Pass empty strings to skip log emission.
+func (s *WorkspaceService) fetchRemoteIfNeeded(workspaceName, worktreeName, repoPath, ref string) error {
 	parts := strings.SplitN(ref, "/", 2)
 	if len(parts) < 2 {
 		return nil // local branch, no fetch needed
@@ -126,11 +128,9 @@ func fetchRemoteIfNeeded(repoPath, ref string) error {
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		if strings.TrimSpace(line) == remote {
-			fetchCmd := exec.Command("git", "-C", repoPath, "fetch", remote) // #nosec G204
-			if fetchOut, fetchErr := fetchCmd.CombinedOutput(); fetchErr != nil {
-				return fmt.Errorf("fetch %s failed: %s", remote, strings.TrimSpace(string(fetchOut)))
-			}
-			return nil
+			return s.runGitCmdTracked(workspaceName, worktreeName, repoPath,
+				fmt.Sprintf("fetch %s", remote),
+				"fetch", remote)
 		}
 	}
 	return nil // not a remote ref, skip
@@ -382,15 +382,15 @@ func (s *WorkspaceService) RebaseWorktree(workspaceName, worktreeName, targetBra
 	go func() {
 		s.emitTask(workspaceName, worktreeName, StepRebase, StatusInProgress, "")
 		// Fetch remote so the target ref is up to date
-		if err := fetchRemoteIfNeeded(worktreePath, targetBranch); err != nil {
+		if err := s.fetchRemoteIfNeeded(workspaceName, worktreeName, worktreePath, targetBranch); err != nil {
 			s.emitTask(workspaceName, worktreeName, StepRebase, StatusFailed, err.Error())
 			return
 		}
-		cmd := exec.Command("git", "-C", worktreePath, "rebase", targetBranch) // #nosec G204
-		if out, err := cmd.CombinedOutput(); err != nil {
+		if err := s.runGitCmdTracked(workspaceName, worktreeName, worktreePath,
+			"rebase "+targetBranch, "rebase", targetBranch); err != nil {
 			// Abort the failed rebase to leave the worktree in a clean state
 			_ = exec.Command("git", "-C", worktreePath, "rebase", "--abort").Run() // #nosec G204
-			s.emitTask(workspaceName, worktreeName, StepRebase, StatusFailed, strings.TrimSpace(string(out)))
+			s.emitTask(workspaceName, worktreeName, StepRebase, StatusFailed, err.Error())
 			return
 		}
 		s.emitTask(workspaceName, worktreeName, StepRebase, StatusSuccess, "")
@@ -408,13 +408,13 @@ func (s *WorkspaceService) CheckoutBranch(workspaceName, worktreeName, branch st
 	go func() {
 		s.emitTask(workspaceName, worktreeName, StepCheckout, StatusInProgress, "")
 		// Fetch remote so the branch ref is up to date
-		if err := fetchRemoteIfNeeded(worktreePath, branch); err != nil {
+		if err := s.fetchRemoteIfNeeded(workspaceName, worktreeName, worktreePath, branch); err != nil {
 			s.emitTask(workspaceName, worktreeName, StepCheckout, StatusFailed, err.Error())
 			return
 		}
-		cmd := exec.Command("git", "-C", worktreePath, "checkout", branch) // #nosec G204
-		if out, err := cmd.CombinedOutput(); err != nil {
-			s.emitTask(workspaceName, worktreeName, StepCheckout, StatusFailed, strings.TrimSpace(string(out)))
+		if err := s.runGitCmdTracked(workspaceName, worktreeName, worktreePath,
+			"checkout "+branch, "checkout", branch); err != nil {
+			s.emitTask(workspaceName, worktreeName, StepCheckout, StatusFailed, err.Error())
 			return
 		}
 		s.emitTask(workspaceName, worktreeName, StepCheckout, StatusSuccess, "")
@@ -441,13 +441,14 @@ func (s *WorkspaceService) NewBranchOnWorktree(workspaceName, worktreeName, bran
 		}
 		s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusInProgress, "")
 		// Fetch remote so the base branch ref is up to date
-		if err := fetchRemoteIfNeeded(worktreePath, baseBranch); err != nil {
+		if err := s.fetchRemoteIfNeeded(workspaceName, worktreeName, worktreePath, baseBranch); err != nil {
 			s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, err.Error())
 			return
 		}
-		cmd := exec.Command("git", "-C", worktreePath, "checkout", "-b", branchName, baseBranch) // #nosec G204
-		if out, err := cmd.CombinedOutput(); err != nil {
-			s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, strings.TrimSpace(string(out)))
+		if err := s.runGitCmdTracked(workspaceName, worktreeName, worktreePath,
+			fmt.Sprintf("checkout -b %s %s", branchName, baseBranch),
+			"checkout", "-b", branchName, baseBranch); err != nil {
+			s.emitTask(workspaceName, worktreeName, StepNewBranch, StatusFailed, err.Error())
 			return
 		}
 		// Remove inherited upstream tracking so the first push uses -u
@@ -477,15 +478,10 @@ func (s *WorkspaceService) SyncMainCheckout(workspaceName string) error {
 	if config.RepoPath == "" {
 		return fmt.Errorf("workspace not found")
 	}
-	restore := exec.Command("git", "-C", config.RepoPath, "restore", ".") // #nosec G204
-	if out, err := restore.CombinedOutput(); err != nil {
-		return fmt.Errorf("git restore failed: %s", strings.TrimSpace(string(out)))
+	if err := s.runGitCmdTracked("", "", config.RepoPath, "restore .", "restore", "."); err != nil {
+		return err
 	}
-	clean := exec.Command("git", "-C", config.RepoPath, "clean", "-fd") // #nosec G204
-	if out, err := clean.CombinedOutput(); err != nil {
-		return fmt.Errorf("git clean failed: %s", strings.TrimSpace(string(out)))
-	}
-	return nil
+	return s.runGitCmdTracked("", "", config.RepoPath, "clean -fd", "clean", "-fd")
 }
 
 // --- Async creation flow ---
@@ -519,29 +515,45 @@ func (s *WorkspaceService) createWorktreeAsync(workspaceName, worktreeName strin
 	}
 
 	// Fetch remote so the base branch ref is up to date
-	if err := fetchRemoteIfNeeded(config.RepoPath, baseBranch); err != nil {
+	if err := s.fetchRemoteIfNeeded(workspaceName, worktreeName, config.RepoPath, baseBranch); err != nil {
 		s.emitTask(workspaceName, worktreeName, StepGitWorktree, StatusFailed, err.Error())
 		return
 	}
 
-	// Try creating a new branch; if it already exists, reuse it
-	cmd := exec.Command("git", "-C", config.RepoPath, "worktree", "add", "-b", worktreeName, worktreePath, baseBranch) // #nosec G204
-
-	// Track command so it can be cancelled
+	// Try creating a new branch; if it already exists, reuse it.
+	// We run the first attempt directly here (rather than via runGitCmdTracked)
+	// so we can detect the "already exists" case before surfacing it as failure.
 	key := workspaceName + "/" + worktreeName
+	addArgs := []string{"-C", config.RepoPath, "worktree", "add", "-b", worktreeName, worktreePath, baseBranch}
+	addLabel := fmt.Sprintf("worktree add -b %s %s %s", worktreeName, worktreePath, baseBranch)
+	cmd := exec.Command("git", addArgs...) // #nosec G204
 	s.mu.Lock()
 	s.runningCmds[key] = cmd
 	s.mu.Unlock()
 
+	s.emitLogLines(workspaceName, worktreeName, "$ git "+addLabel)
 	out, err := cmd.CombinedOutput()
+	trimmed := strings.TrimRight(string(out), "\n")
+	if trimmed != "" {
+		s.emitLogLines(workspaceName, worktreeName, strings.Split(trimmed, "\n")...)
+	}
 
 	if err != nil && strings.Contains(string(out), "already exists") {
 		// Branch exists — reuse it (directory cannot exist thanks to the early check above)
-		cmd = exec.Command("git", "-C", config.RepoPath, "worktree", "add", worktreePath, worktreeName) // #nosec G204
+		s.emitLogLines(workspaceName, worktreeName,
+			fmt.Sprintf("Branch %q already exists, reusing it.", worktreeName))
+		retryArgs := []string{"-C", config.RepoPath, "worktree", "add", worktreePath, worktreeName}
+		retryLabel := fmt.Sprintf("worktree add %s %s", worktreePath, worktreeName)
+		cmd = exec.Command("git", retryArgs...) // #nosec G204
 		s.mu.Lock()
 		s.runningCmds[key] = cmd
 		s.mu.Unlock()
+		s.emitLogLines(workspaceName, worktreeName, "$ git "+retryLabel)
 		out, err = cmd.CombinedOutput()
+		trimmed = strings.TrimRight(string(out), "\n")
+		if trimmed != "" {
+			s.emitLogLines(workspaceName, worktreeName, strings.Split(trimmed, "\n")...)
+		}
 	}
 
 	s.mu.Lock()
@@ -550,7 +562,12 @@ func (s *WorkspaceService) createWorktreeAsync(workspaceName, worktreeName strin
 
 	if err != nil {
 		_ = os.RemoveAll(worktreePath)
-		s.emitTask(workspaceName, worktreeName, StepGitWorktree, StatusFailed, strings.TrimSpace(string(out)))
+		errMsg := trimmed
+		if errMsg == "" {
+			errMsg = err.Error()
+		}
+		s.emitLogLines(workspaceName, worktreeName, "git worktree add failed: "+errMsg)
+		s.emitTask(workspaceName, worktreeName, StepGitWorktree, StatusFailed, errMsg)
 		return
 	}
 
@@ -607,6 +624,43 @@ type WorktreeLogEvent struct {
 	WorktreeName  string   `json:"worktreeName"`
 	Lines         []string `json:"lines"`
 	Timestamp     int64    `json:"timestamp"` // Unix milliseconds
+}
+
+// emitLogLines emits a worktree-log event with the given lines. Skipped when
+// either workspace or worktree name is empty (callers that don't have a target).
+func (s *WorkspaceService) emitLogLines(workspaceName, worktreeName string, lines ...string) {
+	if workspaceName == "" || worktreeName == "" || len(lines) == 0 {
+		return
+	}
+	application.Get().Event.Emit("worktree-log", WorktreeLogEvent{
+		WorkspaceName: workspaceName,
+		WorktreeName:  worktreeName,
+		Lines:         lines,
+		Timestamp:     time.Now().UnixMilli(),
+	})
+}
+
+// runGitCmdTracked runs a git command in repoDir, captures combined output,
+// and on failure emits the output as worktree-log so the user can open it
+// from the dashboard. label is a short human description of the command
+// (e.g. "rebase origin/main") used for the header line.
+func (s *WorkspaceService) runGitCmdTracked(workspaceName, worktreeName, repoDir, label string, args ...string) error {
+	s.emitLogLines(workspaceName, worktreeName, "$ git "+label)
+	gitArgs := append([]string{"-C", repoDir}, args...)
+	cmd := exec.Command("git", gitArgs...) // #nosec G204
+	out, err := cmd.CombinedOutput()
+	trimmed := strings.TrimRight(string(out), "\n")
+	if trimmed != "" {
+		s.emitLogLines(workspaceName, worktreeName, strings.Split(trimmed, "\n")...)
+	}
+	if err != nil {
+		s.emitLogLines(workspaceName, worktreeName, fmt.Sprintf("git %s failed: %s", label, err.Error()))
+		if trimmed != "" {
+			return fmt.Errorf("git %s failed: %s", label, trimmed)
+		}
+		return fmt.Errorf("git %s failed: %w", label, err)
+	}
+	return nil
 }
 
 func (s *WorkspaceService) runScriptTracked(workspaceName, worktreeName, script, workDir string) error {
@@ -723,11 +777,14 @@ func (s *WorkspaceService) forceRemoveWorktree(workspaceName, worktreeName strin
 	config := s.readConfig(workspaceName)
 	worktreePath := filepath.Join(s.groveDir, workspaceName, "worktrees", worktreeName)
 
-	cmd := exec.Command("git", "-C", config.RepoPath, "worktree", "remove", "--force", worktreePath) // #nosec G204
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if err := s.runGitCmdTracked(workspaceName, worktreeName, config.RepoPath,
+		fmt.Sprintf("worktree remove --force %s", worktreePath),
+		"worktree", "remove", "--force", worktreePath); err != nil {
 		// Fallback: direct removal + prune stale worktree index entries
+		s.emitLogLines(workspaceName, worktreeName, "Falling back to manual cleanup of "+worktreePath)
 		if removeErr := os.RemoveAll(worktreePath); removeErr != nil {
-			return fmt.Errorf("git worktree remove failed (%s) and cleanup failed: %w", strings.TrimSpace(string(out)), removeErr)
+			s.emitLogLines(workspaceName, worktreeName, "manual cleanup failed: "+removeErr.Error())
+			return fmt.Errorf("git worktree remove failed (%s) and cleanup failed: %w", err.Error(), removeErr)
 		}
 		if pruneErr := exec.Command("git", "-C", config.RepoPath, "worktree", "prune").Run(); pruneErr != nil { // #nosec G204
 			log.Printf("[grove] worktree prune failed after manual cleanup of %s/%s: %v", workspaceName, worktreeName, pruneErr)

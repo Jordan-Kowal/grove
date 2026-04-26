@@ -11,6 +11,7 @@
 ## TBD
 
 - 🚀 New "Track active editor windows" setting: turn off the `active` badge and editor polling for editors that share a single window across folders (e.g. recent Zed builds)
+- ✨ Failed git operations (worktree create/remove, rebase, checkout, new branch) now expose a "View logs" button with the captured git output, matching the setup-script behavior
 
 ## 0.3.3 - 2026-04-22
 
