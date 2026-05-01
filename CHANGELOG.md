@@ -8,6 +8,10 @@
 - 🔧 Others
 - 💥 Breaking
 
+## TBD
+
+- 🔧 Upgraded dependencies
+
 ## 0.3.4 - 2026-04-26
 
 - ✨ The update prompt now sets clearer expectations
